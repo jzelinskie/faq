@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/zeebo/bencode"
+	"gopkg.in/yaml.v2"
 )
 
 type unmarshaler func([]byte) (interface{}, error)
@@ -13,6 +14,7 @@ type unmarshaler func([]byte) (interface{}, error)
 var formats = map[string]unmarshaler{
 	"bencode": bencodeUnmarshal,
 	"json":    jsonUnmarshal,
+	"yaml":    yamlUnmarshal,
 }
 
 func unmarshal(name string, contents []byte) (interface{}, error) {
@@ -24,19 +26,28 @@ func unmarshal(name string, contents []byte) (interface{}, error) {
 }
 
 func bencodeUnmarshal(fileBytes []byte) (interface{}, error) {
-	var bencodeObject interface{}
-	err := bencode.DecodeBytes(fileBytes, &bencodeObject)
+	var obj interface{}
+	err := bencode.DecodeBytes(fileBytes, &obj)
 	if err != nil {
 		return nil, err
 	}
-	return bencodeObject, nil
+	return obj, nil
 }
 
 func jsonUnmarshal(fileBytes []byte) (interface{}, error) {
-	var jsonObject interface{}
-	err := json.Unmarshal(fileBytes, &jsonObject)
+	var obj interface{}
+	err := json.Unmarshal(fileBytes, &obj)
 	if err != nil {
 		return nil, err
 	}
-	return jsonObject, nil
+	return obj, nil
+}
+
+func yamlUnmarshal(fileBytes []byte) (interface{}, error) {
+	var obj interface{}
+	err := yaml.Unmarshal(fileBytes, &obj)
+	if err != nil {
+		return nil, err
+	}
+	return obj, nil
 }
