@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ghodss/yaml"
 	"github.com/zeebo/bencode"
-	"gopkg.in/yaml.v2"
 )
 
 type unmarshaler func([]byte) (interface{}, error)
