@@ -7,6 +7,7 @@ import (
 
 	"github.com/ashb/jqrepl/jq"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func main() {
@@ -14,7 +15,6 @@ func main() {
 		Use:   "faq",
 		Short: "format agnostic querier",
 		Long:  "faq is like `sed`, but for object-like data using libjq.",
-		Args:  cobra.MinimumNArgs(2),
 		RunE:  runCmdFunc,
 	}
 
@@ -24,8 +24,18 @@ func main() {
 }
 
 func runCmdFunc(cmd *cobra.Command, args []string) error {
-	program := args[0]
-	pathArgs := args[1:]
+	stdoutIsTTY := terminal.IsTerminal(int(os.Stdout.Fd()))
+	stdinIsTTY := terminal.IsTerminal(int(os.Stdin.Fd()))
+	program := "."
+	pathArgs := []string{}
+	if stdoutIsTTY && stdinIsTTY && len(args) > 1 {
+		program = args[0]
+		pathArgs = args[1:]
+	} else if !stdoutIsTTY || !stdinIsTTY {
+		pathArgs = []string{"/dev/stdin"}
+	} else {
+		return fmt.Errorf("not enough arguments provided")
+	}
 
 	for _, pathArg := range pathArgs {
 		libjq, err := jq.New()
