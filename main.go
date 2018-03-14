@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/ashb/jqrepl/jq"
+	"github.com/generaltso/linguist"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -19,7 +20,7 @@ func main() {
 	}
 
 	rootCmd.Flags().Bool("debug", false, "enable debug logging")
-	rootCmd.Flags().StringP("format", "f", "json", "object format (e.g. json, yaml, bencode)")
+	rootCmd.Flags().StringP("format", "f", "auto", "object format (e.g. json, yaml, bencode)")
 	rootCmd.Execute()
 }
 
@@ -54,6 +55,10 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		formatName, err := cmd.Flags().GetString("format")
 		if err != nil {
 			panic("failed to find format flag")
+		}
+
+		if formatName == "auto" {
+			formatName = linguist.Analyse(fileBytes, linguist.LanguageHints(path))
 		}
 
 		unmarshaledFile, err := unmarshal(formatName, fileBytes)
