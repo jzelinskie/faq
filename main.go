@@ -15,7 +15,7 @@ func main() {
 	var rootCmd = &cobra.Command{
 		Use:   "faq",
 		Short: "format agnostic querier",
-		Long:  "faq is like `sed`, but for object-like data using libjq.",
+		Long:  "faq is like `jq`, but for a variety of object-like data formats",
 		RunE:  runCmdFunc,
 	}
 
