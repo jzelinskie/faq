@@ -20,6 +20,7 @@ func main() {
 
 	rootCmd.Flags().Bool("debug", false, "enable debug logging")
 	rootCmd.Flags().StringP("format", "f", "json", "object format (e.g. json, yaml, bencode)")
+	rootCmd.Flags().BoolP("raw", "r", false, "output raw strings, not JSON texts")
 	rootCmd.Execute()
 }
 
@@ -79,9 +80,20 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		}
 
 		for _, resultJv := range resultJvs {
-			fmt.Println(resultJv.Dump(jq.JvPrintPretty | jq.JvPrintSpace1 | jq.JvPrintColour))
+			if ok, _ := cmd.Flags().GetBool("raw"); ok {
+				printRaw(resultJv, true)
+			} else {
+				flags := jq.JvPrintPretty | jq.JvPrintSpace1 | jq.JvPrintColour
+				fmt.Println(resultJv.Dump(flags))
+			}
 		}
 	}
 
 	return nil
+}
+
+func printRaw(resultJv *jq.Jv, ascii bool) {
+	if ascii && (resultJv.Kind() == jq.JV_KIND_STRING) {
+		fmt.Println(resultJv.Dump(jq.JvPrintAscii))
+	}
 }
