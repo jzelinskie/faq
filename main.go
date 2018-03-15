@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/Azure/draft/pkg/linguist"
 	"github.com/ashb/jqrepl/jq"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
@@ -19,8 +20,9 @@ func main() {
 	}
 
 	rootCmd.Flags().Bool("debug", false, "enable debug logging")
-	rootCmd.Flags().StringP("format", "f", "json", "object format (e.g. json, yaml, bencode)")
+	rootCmd.Flags().StringP("format", "f", "auto", "object format (e.g. json, yaml, bencode)")
 	rootCmd.Flags().BoolP("raw", "r", false, "output raw strings, not JSON texts")
+
 	rootCmd.Execute()
 }
 
@@ -43,6 +45,7 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to initialize libjq: %s", err)
 		}
+
 		// Sucks these won't close until runCmdFunc exits.
 		defer libjq.Close()
 
@@ -55,6 +58,10 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		formatName, err := cmd.Flags().GetString("format")
 		if err != nil {
 			panic("failed to find format flag")
+		}
+
+		if formatName == "auto" {
+			formatName = linguist.LanguageByContents(fileBytes, linguist.LanguageHints(path))
 		}
 
 		unmarshaledFile, err := unmarshal(formatName, fileBytes)
