@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/Azure/draft/pkg/linguist"
 	"github.com/ashb/jqrepl/jq"
-	"github.com/generaltso/linguist"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -43,6 +43,7 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to initialize libjq: %s", err)
 		}
+
 		// Sucks these won't close until runCmdFunc exits.
 		defer libjq.Close()
 
@@ -58,7 +59,7 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		}
 
 		if formatName == "auto" {
-			formatName = linguist.Analyse(fileBytes, linguist.LanguageHints(path))
+			formatName = linguist.LanguageByContents(fileBytes, linguist.LanguageHints(path))
 		}
 
 		unmarshaledFile, err := unmarshal(formatName, fileBytes)
