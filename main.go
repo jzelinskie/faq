@@ -22,6 +22,7 @@ func main() {
 	rootCmd.Flags().Bool("debug", false, "enable debug logging")
 	rootCmd.Flags().StringP("format", "f", "auto", "object format (e.g. json, yaml, bencode)")
 	rootCmd.Flags().BoolP("raw", "r", false, "output raw strings, not JSON texts")
+	rootCmd.Flags().BoolP("ascii-output", "a", false, "force output to be ascii instead of UTF-8")
 
 	rootCmd.Execute()
 }
@@ -86,11 +87,12 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to execute jq program for file at %s: %s", path, err)
 		}
 
+		flags := jq.JvPrintPretty | jq.JvPrintSpace1 | jq.JvPrintColour
 		for _, resultJv := range resultJvs {
 			if ok, _ := cmd.Flags().GetBool("raw"); ok {
-				printRaw(resultJv, true)
+				ascii, _ := cmd.Flags().GetBool("ascii-output")
+				printRaw(resultJv, ascii, flags)
 			} else {
-				flags := jq.JvPrintPretty | jq.JvPrintSpace1 | jq.JvPrintColour
 				fmt.Println(resultJv.Dump(flags))
 			}
 		}
@@ -99,8 +101,16 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func printRaw(resultJv *jq.Jv, ascii bool) {
+func printRaw(resultJv *jq.Jv, ascii bool, flags jq.JvPrintFlags) {
 	if ascii && (resultJv.Kind() == jq.JV_KIND_STRING) {
 		fmt.Println(resultJv.Dump(jq.JvPrintAscii))
+	} else if resultJv.Kind() == jq.JV_KIND_STRING {
+		resultStr, err := resultJv.String()
+		if err != nil {
+			panic("failed to convert string jv into a Go string")
+		}
+		fmt.Println(resultStr)
+	} else {
+		fmt.Println(resultJv.Dump(flags))
 	}
 }
