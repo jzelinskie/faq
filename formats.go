@@ -17,7 +17,14 @@ var formats = map[string]unmarshaler{
 	"yaml":    yamlUnmarshal,
 }
 
+var aliases = map[string]string{
+	"javascript": "json",
+}
+
 func unmarshal(name string, contents []byte) (interface{}, error) {
+	if alias, ok := aliases[strings.ToLower(name)]; ok {
+		name = alias
+	}
 	fn, ok := formats[strings.ToLower(name)]
 	if !ok {
 		return nil, fmt.Errorf("no supported format found named %s", name)
