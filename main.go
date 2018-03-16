@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 
 	"github.com/Azure/draft/pkg/linguist"
 	"github.com/ashb/jqrepl/jq"
@@ -23,6 +24,11 @@ func main() {
 	rootCmd.Flags().StringP("format", "f", "auto", "object format (e.g. json, yaml, bencode)")
 	rootCmd.Flags().BoolP("raw", "r", false, "output raw strings, not JSON texts")
 	rootCmd.Flags().BoolP("ascii-output", "a", false, "force output to be ascii instead of UTF-8")
+	rootCmd.Flags().BoolP("color-output", "C", true, "colorize the output")
+	rootCmd.Flags().BoolP("monochrome-output", "M", false, "monochrome (don't colorize the output)")
+	rootCmd.Flags().BoolP("sort-keys", "S", false, "sort keys of objects on output")
+	rootCmd.Flags().BoolP("compact", "c", false, "compact instead of pretty-printed output")
+	rootCmd.Flags().BoolP("tab", "t", false, "use tabs for indentation")
 
 	rootCmd.Execute()
 }
@@ -39,6 +45,42 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		pathArgs = []string{"/dev/stdin"}
 	} else {
 		return fmt.Errorf("not enough arguments provided")
+	}
+
+	raw, _ := cmd.Flags().GetBool("raw")
+	ascii, _ := cmd.Flags().GetBool("ascii-output")
+	color, _ := cmd.Flags().GetBool("color-output")
+	sortKeys, _ := cmd.Flags().GetBool("sort-keys")
+	compact, _ := cmd.Flags().GetBool("compact")
+	tab, _ := cmd.Flags().GetBool("tab")
+	monochrome, _ := cmd.Flags().GetBool("monochrome-output")
+	if runtime.GOOS == "windows" {
+		monochrome = true
+	}
+
+	var flags jq.JvPrintFlags
+	if sortKeys {
+		flags = flags | jq.JvPrintSorted
+	}
+	if ascii {
+		flags = flags | jq.JvPrintAscii
+	}
+	if stdoutIsTTY {
+		flags = flags | jq.JvPrintIsATty
+	}
+	if color {
+		flags = flags | jq.JvPrintColour
+	}
+	if monochrome {
+		flags = flags &^ jq.JvPrintColour
+	}
+	if !compact {
+		flags = flags | jq.JvPrintPretty
+	}
+	if tab {
+		flags = flags | jq.JvPrintTab
+	} else {
+		flags = flags | jq.JvPrintSpace1
 	}
 
 	for _, pathArg := range pathArgs {
@@ -87,10 +129,8 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to execute jq program for file at %s: %s", path, err)
 		}
 
-		flags := jq.JvPrintPretty | jq.JvPrintSpace1 | jq.JvPrintColour
 		for _, resultJv := range resultJvs {
-			if ok, _ := cmd.Flags().GetBool("raw"); ok {
-				ascii, _ := cmd.Flags().GetBool("ascii-output")
+			if raw {
 				printRaw(resultJv, ascii, flags)
 			} else {
 				fmt.Println(resultJv.Dump(flags))
