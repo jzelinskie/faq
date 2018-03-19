@@ -5,6 +5,12 @@ The additional formats are converted into JSON and processed with libjq.
 
 faq is pronounced "fah queue".
 
+Supported formats:
+- Bencode
+- JSON
+- XML
+- YAML
+
 ## Usage
 
 ```
@@ -15,7 +21,7 @@ Flags:
   -a, --ascii-output        force output to be ascii instead of UTF-8
   -C, --color-output        colorize the output (default true)
   -c, --compact             compact instead of pretty-printed output
-  -f, --format string       object format (e.g. json, yaml, bencode) (default "auto")
+  -f, --format string       input format (default "auto")
   -h, --help                help for faq
   -M, --monochrome-output   monochrome (don't colorize the output)
   -r, --raw                 output raw strings, not JSON texts

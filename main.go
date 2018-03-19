@@ -20,7 +20,14 @@ func main() {
 		Long: `faq is a tool intended to be a drop in replacement for "jq", but supports additional formats.
 The additional formats are converted into JSON and processed with libjq.
 
-faq is pronounced "fah queue".`,
+faq is pronounced "fah queue".
+
+Supported formats:
+- Bencode
+- JSON
+- XML
+- YAML
+`,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if debug, _ := cmd.Flags().GetBool("debug"); debug {
 				logrus.SetLevel(logrus.DebugLevel)
@@ -31,7 +38,7 @@ faq is pronounced "fah queue".`,
 	}
 
 	rootCmd.Flags().Bool("debug", false, "enable debug logging")
-	rootCmd.Flags().StringP("format", "f", "auto", "object format (e.g. json, yaml, bencode)")
+	rootCmd.Flags().StringP("format", "f", "auto", "input format")
 	rootCmd.Flags().BoolP("raw", "r", false, "output raw strings, not JSON texts")
 	rootCmd.Flags().BoolP("ascii-output", "a", false, "force output to be ascii instead of UTF-8")
 	rootCmd.Flags().BoolP("color-output", "C", true, "colorize the output")
