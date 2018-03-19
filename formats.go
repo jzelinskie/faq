@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Azure/draft/pkg/linguist"
+	"github.com/clbanning/mxj"
 	"github.com/ghodss/yaml"
 	"github.com/zeebo/bencode"
 )
@@ -17,6 +18,7 @@ var formats = map[string]unmarshaler{
 	"bencode": bencodeUnmarshal,
 	"json":    jsonUnmarshal,
 	"yaml":    yamlUnmarshal,
+	"xml":     xmlUnmarshal,
 }
 
 var aliases = map[string]string{
@@ -81,4 +83,8 @@ func yamlUnmarshal(fileBytes []byte) (interface{}, error) {
 		return nil, err
 	}
 	return obj, nil
+}
+
+func xmlUnmarshal(fileBytes []byte) (interface{}, error) {
+	return mxj.NewMapXml(fileBytes, true)
 }
