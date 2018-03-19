@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
+	"github.com/Azure/draft/pkg/linguist"
 	"github.com/ghodss/yaml"
 	"github.com/zeebo/bencode"
 )
@@ -19,13 +21,31 @@ var formats = map[string]unmarshaler{
 
 var aliases = map[string]string{
 	"javascript": "json",
+	"lisp":       "sexp",
+}
+
+// extensions are used to override Linguist's auto-detect by mapping file-type
+// extensions to supported formats.
+var extensions = map[string]string{
+	"torrent": "bencode",
+}
+
+func detectFormat(fileBytes []byte, path string) string {
+	if ext := filepath.Ext(path); ext != "" {
+		if format, ok := extensions[ext[1:]]; ok {
+			return format
+		}
+	}
+
+	format := strings.ToLower(linguist.LanguageByContents(fileBytes, linguist.LanguageHints(path)))
+	if alias, ok := aliases[format]; ok {
+		format = alias
+	}
+	return format
 }
 
 func unmarshal(name string, contents []byte) (interface{}, error) {
-	if alias, ok := aliases[strings.ToLower(name)]; ok {
-		name = alias
-	}
-	fn, ok := formats[strings.ToLower(name)]
+	fn, ok := formats[name]
 	if !ok {
 		return nil, fmt.Errorf("no supported format found named %s", name)
 	}

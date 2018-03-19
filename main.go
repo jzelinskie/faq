@@ -6,7 +6,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/Azure/draft/pkg/linguist"
+	"github.com/Sirupsen/logrus"
 	"github.com/ashb/jqrepl/jq"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
@@ -17,7 +17,13 @@ func main() {
 		Use:   "faq",
 		Short: "format agnostic querier",
 		Long:  "faq is like `jq`, but for a variety of object-like data formats",
-		RunE:  runCmdFunc,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if debug, _ := cmd.Flags().GetBool("debug"); debug {
+				logrus.SetLevel(logrus.DebugLevel)
+			}
+			return nil
+		},
+		RunE: runCmdFunc,
 	}
 
 	rootCmd.Flags().Bool("debug", false, "enable debug logging")
@@ -104,7 +110,7 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		}
 
 		if formatName == "auto" {
-			formatName = linguist.LanguageByContents(fileBytes, linguist.LanguageHints(path))
+			formatName = detectFormat(fileBytes, path)
 		}
 
 		unmarshaledFile, err := unmarshal(formatName, fileBytes)
