@@ -81,3 +81,8 @@ faq 'del(.info.pieces)' ubuntu.torrent
   }
 }
 ```
+
+## License
+
+faq is made available under the Apache 2.0 license.
+See the [LICENSE](LICENSE) file for details.
