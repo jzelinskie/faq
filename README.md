@@ -25,26 +25,37 @@ Flags:
 
 ## Examples
 
-### Piping
+### Piping to make something legible
 
 ```sh
-$ echo '{"hello": "world"}' | faq
+echo '{"hello":{"world":"whats up"},"with":"you"}' | faq
+```
+
+```json
 {
-  "hello": "world"
+  "hello": {
+    "world": "whats up"
+  },
+  "with": "you"
 }
+
 ```
 
 ### Reading a raw string value from a YAML file
 
 ```sh
-$ faq -r '.apiVersion' etcdcluster.yaml
+faq -r '.apiVersion' etcdcluster.yaml
+```
+```
 etcd.database.coreos.com/v1beta2
 ```
 
 ### Viewing the non-binary parts of a torrent file
 
+```sh
+faq 'del(.info.pieces)' ubuntu.torrent
 ```
-$ faq 'del(.info.pieces)' ubuntu.torrent
+```json
 {
   "announce": "http://torrent.ubuntu.com:6969/announce",
   "announce-list": [
