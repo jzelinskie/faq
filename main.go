@@ -17,7 +17,10 @@ func main() {
 		Use: "faq [flags] [filter string] [files...]",
 		DisableFlagsInUseLine: true,
 		Short: "format agnostic querier",
-		Long:  "faq is like `jq`, but for a variety of object-like data formats",
+		Long: `faq is a tool intended to be a drop in replacement for "jq", but supports additional formats.
+The additional formats are converted into JSON and processed with libjq.
+
+faq is pronounced "fah queue".`,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if debug, _ := cmd.Flags().GetBool("debug"); debug {
 				logrus.SetLevel(logrus.DebugLevel)
