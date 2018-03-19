@@ -40,6 +40,10 @@ func detectFormat(fileBytes []byte, path string) string {
 	format := strings.ToLower(linguist.LanguageByContents(fileBytes, linguist.LanguageHints(path)))
 	if alias, ok := aliases[format]; ok {
 		format = alias
+	} else if format == "coq" {
+		// This is what linguist says when it has no idea what it's talking about.
+		// For now, just fallback to JSON.
+		format = "json"
 	}
 	return format
 }
