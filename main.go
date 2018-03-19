@@ -14,7 +14,8 @@ import (
 
 func main() {
 	var rootCmd = &cobra.Command{
-		Use:   "faq",
+		Use: "faq [flags] [filter string] [files...]",
+		DisableFlagsInUseLine: true,
 		Short: "format agnostic querier",
 		Long:  "faq is like `jq`, but for a variety of object-like data formats",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -35,6 +36,8 @@ func main() {
 	rootCmd.Flags().BoolP("sort-keys", "S", false, "sort keys of objects on output")
 	rootCmd.Flags().BoolP("compact", "c", false, "compact instead of pretty-printed output")
 	rootCmd.Flags().BoolP("tab", "t", false, "use tabs for indentation")
+
+	rootCmd.Flags().MarkHidden("debug")
 
 	rootCmd.Execute()
 }
