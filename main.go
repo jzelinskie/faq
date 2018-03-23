@@ -14,8 +14,6 @@ import (
 
 func main() {
 	var rootCmd = &cobra.Command{
-		Use: "faq [flags] [filter string] [files...]",
-		DisableFlagsInUseLine: true,
 		Short: "format agnostic querier",
 		Long: `faq is a tool intended to be a drop in replacement for "jq", but supports additional formats.
 The additional formats are converted into JSON and processed with libjq.
@@ -29,12 +27,17 @@ Supported formats:
 - XML
 - YAML
 `,
+
+		Use: "faq [flags] [filter string] [files...]",
+		DisableFlagsInUseLine: true,
+
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if debug, _ := cmd.Flags().GetBool("debug"); debug {
 				logrus.SetLevel(logrus.DebugLevel)
 			}
 			return nil
 		},
+
 		RunE: runCmdFunc,
 	}
 
