@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Azure/draft/pkg/linguist"
+	"github.com/BurntSushi/toml"
 	"github.com/clbanning/mxj"
 	"github.com/ghodss/yaml"
 	"github.com/zeebo/bencode"
@@ -19,6 +20,7 @@ var formats = map[string]unmarshaler{
 	"json":    jsonUnmarshal,
 	"yaml":    yamlUnmarshal,
 	"xml":     xmlUnmarshal,
+	"toml":    tomlUnmarshal,
 }
 
 var aliases = map[string]string{
@@ -30,6 +32,7 @@ var aliases = map[string]string{
 // extensions to supported formats.
 var extensions = map[string]string{
 	"torrent": "bencode",
+	"toml":    "toml",
 }
 
 func detectFormat(fileBytes []byte, path string) string {
@@ -87,4 +90,13 @@ func yamlUnmarshal(fileBytes []byte) (interface{}, error) {
 
 func xmlUnmarshal(fileBytes []byte) (interface{}, error) {
 	return mxj.NewMapXml(fileBytes, true)
+}
+
+func tomlUnmarshal(fileBytes []byte) (interface{}, error) {
+	var obj interface{}
+	err := toml.Unmarshal(fileBytes, &obj)
+	if err != nil {
+		return nil, err
+	}
+	return obj, nil
 }

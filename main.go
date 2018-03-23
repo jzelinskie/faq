@@ -25,6 +25,7 @@ faq is pronounced "fah queue".
 Supported formats:
 - Bencode
 - JSON
+- TOML
 - XML
 - YAML
 `,
