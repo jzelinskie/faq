@@ -6,6 +6,7 @@ The additional formats are converted into JSON and processed with libjq.
 faq is pronounced "fah queue".
 
 Supported formats:
+- BSON
 - Bencode
 - JSON
 - TOML

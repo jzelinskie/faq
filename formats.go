@@ -10,6 +10,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/clbanning/mxj"
 	"github.com/ghodss/yaml"
+	"github.com/globalsign/mgo/bson"
 	"github.com/zeebo/bencode"
 )
 
@@ -21,6 +22,7 @@ var formats = map[string]unmarshaler{
 	"yaml":    yamlUnmarshal,
 	"xml":     xmlUnmarshal,
 	"toml":    tomlUnmarshal,
+	"bson":    bsonUnmarshal,
 }
 
 var aliases = map[string]string{
@@ -33,6 +35,7 @@ var aliases = map[string]string{
 var extensions = map[string]string{
 	"torrent": "bencode",
 	"toml":    "toml",
+	"bson":    "bson",
 }
 
 func detectFormat(fileBytes []byte, path string) string {
@@ -95,6 +98,15 @@ func xmlUnmarshal(fileBytes []byte) (interface{}, error) {
 func tomlUnmarshal(fileBytes []byte) (interface{}, error) {
 	var obj interface{}
 	err := toml.Unmarshal(fileBytes, &obj)
+	if err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
+
+func bsonUnmarshal(fileBytes []byte) (interface{}, error) {
+	var obj interface{}
+	err := bson.Unmarshal(fileBytes, &obj)
 	if err != nil {
 		return nil, err
 	}
