@@ -136,7 +136,12 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to unmarshal file at %s: `%s`", path, err)
 		}
 
-		fileJv, err := jq.JvFromInterface(unmarshaledFile)
+		var fileJv *jq.Jv
+		if jsonBytes, ok := unmarshaledFile.([]byte); ok {
+			fileJv, err = jq.JvFromJSONBytes(jsonBytes)
+		} else {
+			fileJv, err = jq.JvFromInterface(unmarshaledFile)
+		}
 		if err != nil {
 			panic("failed to reflect a jv from unmarshalled file")
 		}

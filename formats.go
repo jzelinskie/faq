@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -17,12 +20,13 @@ import (
 type unmarshaler func([]byte) (interface{}, error)
 
 var formats = map[string]unmarshaler{
+	"pem":     pemUnmarshal,
 	"bencode": bencodeUnmarshal,
-	"json":    jsonUnmarshal,
-	"yaml":    yamlUnmarshal,
-	"xml":     xmlUnmarshal,
-	"toml":    tomlUnmarshal,
 	"bson":    bsonUnmarshal,
+	"json":    jsonUnmarshal,
+	"toml":    tomlUnmarshal,
+	"xml":     xmlUnmarshal,
+	"yaml":    yamlUnmarshal,
 }
 
 var aliases = map[string]string{
@@ -33,9 +37,10 @@ var aliases = map[string]string{
 // extensions are used to override Linguist's auto-detect by mapping file-type
 // extensions to supported formats.
 var extensions = map[string]string{
-	"torrent": "bencode",
-	"toml":    "toml",
 	"bson":    "bson",
+	"pem":     "pem",
+	"toml":    "toml",
+	"torrent": "bencode",
 }
 
 func detectFormat(fileBytes []byte, path string) string {
@@ -111,4 +116,16 @@ func bsonUnmarshal(fileBytes []byte) (interface{}, error) {
 		return nil, err
 	}
 	return obj, nil
+}
+
+func pemUnmarshal(fileBytes []byte) (interface{}, error) {
+	block, _ := pem.Decode(fileBytes)
+	switch {
+	case block == nil:
+		return nil, errors.New("failed to decode pem")
+	case block.Type == "PUBLIC KEY":
+		key, _ := x509.ParsePKIXPublicKey(block.Bytes)
+		return json.Marshal(key)
+	}
+	return nil, errors.New("unknown pem format")
 }
