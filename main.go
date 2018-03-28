@@ -66,6 +66,9 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		program = args[0]
 		pathArgs = args[1:]
 	} else if !stdoutIsTTY || !stdinIsTTY {
+		if len(args) == 1 {
+			program = args[0]
+		}
 		pathArgs = []string{"/dev/stdin"}
 	} else {
 		return fmt.Errorf("not enough arguments provided")
