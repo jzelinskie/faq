@@ -61,21 +61,22 @@ etcd.database.coreos.com/v1beta2
 ### Viewing the non-binary parts of a torrent file
 
 ```sh
-$ curl --silent -L https://obsproject.com/downloads/torrents/OBS-Studio-21.1-Full-Installer.exe.torrent | faq -f bencode 'del(.info.pieces)'
+curl --silent -L https://cdimage.debian.org/debian-cd/current/amd64/bt-cd/debian-9.4.0-amd64-netinst.iso.torrent | faq -f bencode 'del(.info.pieces)'
 ```
 
 ```json
 {
-  "announce": "https://obsproject.com/tracker/announce",
-  "comment": "Open Broadcaster Software, https://obsproject.com/",
-  "created by": "Transmission/2.92 (14714)",
-  "creation date": 1521423118,
-  "encoding": "UTF-8",
+  "announce": "http://bttracker.debian.org:6969/announce",
+  "comment": "\"Debian CD from cdimage.debian.org\"",
+  "creation date": 1520682848,
+  "httpseeds": [
+    "https://cdimage.debian.org/cdimage/release/9.4.0//srv/cdbuilder.debian.org/dst/deb-cd/weekly-builds/amd64/iso-cd/debian-9.4.0-amd64-netinst.iso",
+    "https://cdimage.debian.org/cdimage/archive/9.4.0//srv/cdbuilder.debian.org/dst/deb-cd/weekly-builds/amd64/iso-cd/debian-9.4.0-amd64-netinst.iso"
+  ],
   "info": {
-    "piece length": 65536,
-    "private": 0,
-    "length": 111670320,
-    "name": "OBS-Studio-21.1-Full-Installer.exe"
+    "length": 305135616,
+    "name": "debian-9.4.0-amd64-netinst.iso",
+    "piece length": 262144
   }
 }
 ```
