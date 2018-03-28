@@ -61,25 +61,21 @@ etcd.database.coreos.com/v1beta2
 ### Viewing the non-binary parts of a torrent file
 
 ```sh
-faq 'del(.info.pieces)' ubuntu.torrent
+$ curl --silent -L https://obsproject.com/downloads/torrents/OBS-Studio-21.1-Full-Installer.exe.torrent | faq -f bencode 'del(.info.pieces)'
 ```
+
 ```json
 {
-  "announce": "http://torrent.ubuntu.com:6969/announce",
-  "announce-list": [
-    [
-      "http://torrent.ubuntu.com:6969/announce"
-    ],
-    [
-      "http://ipv6.torrent.ubuntu.com:6969/announce"
-    ]
-  ],
-  "comment": "Ubuntu CD releases.ubuntu.com",
-  "creation date": 1515735480,
+  "announce": "https://obsproject.com/tracker/announce",
+  "comment": "Open Broadcaster Software, https://obsproject.com/",
+  "created by": "Transmission/2.92 (14714)",
+  "creation date": 1521423118,
+  "encoding": "UTF-8",
   "info": {
-    "length": 1502576640,
-    "name": "ubuntu-17.10.1-desktop-amd64.iso",
-    "piece length": 524288
+    "piece length": 65536,
+    "private": 0,
+    "length": 111670320,
+    "name": "OBS-Studio-21.1-Full-Installer.exe"
   }
 }
 ```
