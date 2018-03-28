@@ -58,6 +58,25 @@ faq -r '.apiVersion' etcdcluster.yaml
 etcd.database.coreos.com/v1beta2
 ```
 
+### Get the name of all of the dependencies of a Go project
+
+```sh
+faq -r '.constraint[].name' Gopkg.toml
+```
+
+```
+github.com/Azure/draft
+github.com/BurntSushi/toml
+github.com/ashb/jqrepl
+github.com/clbanning/mxj
+github.com/ghodss/yaml
+github.com/globalsign/mgo
+github.com/sirupsen/logrus
+github.com/spf13/cobra
+github.com/zeebo/bencode
+golang.org/x/crypto
+```
+
 ### Viewing the non-binary parts of a torrent file
 
 ```sh
