@@ -1,0 +1,21 @@
+language: go
+
+# This build will fail on Travis's Linux until Ubuntu packages a recent version
+# of jq that includes libjq headers.
+os: osx
+
+install:
+- brew install jq
+- go get -u github.com/golang/dep/...
+- go get -u github.com/golang/lint/...
+- go get -u golang.org/x/tools/cmd/...
+
+script:
+- dep ensure
+- go vet $(go list ./...)
+- diff <(goimports -d $(find . -type f -name '*.go' -not -path "./vendor/*")) <(printf "")
+- (for d in $(go list ./...); do diff <(golint $d) <(printf "") || exit 1;  done)
+- go test ./...
+
+notifications:
+  email: false
