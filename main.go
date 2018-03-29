@@ -66,16 +66,19 @@ Supported formats:
 func runCmdFunc(cmd *cobra.Command, args []string) error {
 	stdoutIsTTY := terminal.IsTerminal(int(os.Stdout.Fd()))
 	stdinIsTTY := terminal.IsTerminal(int(os.Stdin.Fd()))
-	program := "."
+
+	// Figure out which argument is the program, if there is one.
+	program := ""
 	pathArgs := []string{}
-	if stdoutIsTTY && stdinIsTTY && len(args) > 1 {
+	if !stdinIsTTY && len(args) == 0 {
+		program = "."
+		pathArgs = []string{"/dev/stdin"}
+	} else if !stdinIsTTY && len(args) == 1 {
+		program = args[0]
+		pathArgs = []string{"/dev/stdin"}
+	} else if len(args) >= 2 {
 		program = args[0]
 		pathArgs = args[1:]
-	} else if !stdoutIsTTY || !stdinIsTTY {
-		if len(args) == 1 {
-			program = args[0]
-		}
-		pathArgs = []string{"/dev/stdin"}
 	} else {
 		return fmt.Errorf("not enough arguments provided")
 	}
