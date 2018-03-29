@@ -17,16 +17,18 @@ import (
 	"github.com/zeebo/bencode"
 )
 
-type unmarshaler func([]byte) (interface{}, error)
+type format interface {
+	ToJSON([]byte) ([]byte, error)
+}
 
-var formats = map[string]unmarshaler{
-	"pem":     pemUnmarshal,
-	"bencode": bencodeUnmarshal,
-	"bson":    bsonUnmarshal,
-	"json":    jsonUnmarshal,
-	"toml":    tomlUnmarshal,
-	"xml":     xmlUnmarshal,
-	"yaml":    yamlUnmarshal,
+var formats = map[string]format{
+	"pem":     pemFormat{},
+	"bencode": bencodeFormat{},
+	"bson":    bsonFormat{},
+	"json":    jsonFormat{},
+	"toml":    tomlFormat{},
+	"xml":     xmlFormat{},
+	"yaml":    yamlFormat{},
 }
 
 var aliases = map[string]string{
@@ -61,64 +63,77 @@ func detectFormat(fileBytes []byte, path string) string {
 	return format
 }
 
-func unmarshal(name string, contents []byte) (interface{}, error) {
-	fn, ok := formats[name]
+func fileToJSON(name string, contents []byte) ([]byte, error) {
+	format, ok := formats[name]
 	if !ok {
 		return nil, fmt.Errorf("no supported format found named %s", name)
 	}
-	return fn(contents)
+	return format.ToJSON(contents)
 }
 
-func bencodeUnmarshal(fileBytes []byte) (interface{}, error) {
+type bencodeFormat struct{}
+
+func (bencodeFormat) ToJSON(fileBytes []byte) ([]byte, error) {
 	var obj interface{}
 	err := bencode.DecodeBytes(fileBytes, &obj)
 	if err != nil {
 		return nil, err
 	}
-	return obj, nil
+	return json.Marshal(obj)
 }
 
-func jsonUnmarshal(fileBytes []byte) (interface{}, error) {
-	var obj interface{}
-	err := json.Unmarshal(fileBytes, &obj)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
+type jsonFormat struct{}
+
+func (jsonFormat) ToJSON(fileBytes []byte) ([]byte, error) {
+	return fileBytes, nil
 }
 
-func yamlUnmarshal(fileBytes []byte) (interface{}, error) {
+type yamlFormat struct{}
+
+func (yamlFormat) ToJSON(fileBytes []byte) ([]byte, error) {
 	var obj interface{}
 	err := yaml.Unmarshal(fileBytes, &obj)
 	if err != nil {
 		return nil, err
 	}
-	return obj, nil
+	return json.Marshal(obj)
 }
 
-func xmlUnmarshal(fileBytes []byte) (interface{}, error) {
-	return mxj.NewMapXml(fileBytes, true)
+type xmlFormat struct{}
+
+func (xmlFormat) ToJSON(fileBytes []byte) ([]byte, error) {
+	xmap, err := mxj.NewMapXml(fileBytes, true)
+	if err != nil {
+		return nil, err
+	}
+	return xmap.Json()
 }
 
-func tomlUnmarshal(fileBytes []byte) (interface{}, error) {
+type tomlFormat struct{}
+
+func (tomlFormat) ToJSON(fileBytes []byte) ([]byte, error) {
 	var obj interface{}
 	err := toml.Unmarshal(fileBytes, &obj)
 	if err != nil {
 		return nil, err
 	}
-	return obj, nil
+	return json.Marshal(obj)
 }
 
-func bsonUnmarshal(fileBytes []byte) (interface{}, error) {
+type bsonFormat struct{}
+
+func (bsonFormat) ToJSON(fileBytes []byte) ([]byte, error) {
 	var obj interface{}
 	err := bson.Unmarshal(fileBytes, &obj)
 	if err != nil {
 		return nil, err
 	}
-	return obj, nil
+	return json.Marshal(obj)
 }
 
-func pemUnmarshal(fileBytes []byte) (interface{}, error) {
+type pemFormat struct{}
+
+func (pemFormat) ToJSON(fileBytes []byte) ([]byte, error) {
 	block, _ := pem.Decode(fileBytes)
 	switch {
 	case block == nil:

@@ -134,19 +134,14 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			formatName = detectFormat(fileBytes, path)
 		}
 
-		unmarshaledFile, err := unmarshal(formatName, fileBytes)
+		jsonifiedFile, err := fileToJSON(formatName, fileBytes)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal file at %s: `%s`", path, err)
+			return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
 		}
 
-		var fileJv *jq.Jv
-		if jsonBytes, ok := unmarshaledFile.([]byte); ok {
-			fileJv, err = jq.JvFromJSONBytes(jsonBytes)
-		} else {
-			fileJv, err = jq.JvFromInterface(unmarshaledFile)
-		}
+		fileJv, err := jq.JvFromJSONBytes(jsonifiedFile)
 		if err != nil {
-			panic("failed to reflect a jv from unmarshalled file")
+			panic("failed to convert jsonified file into jv")
 		}
 
 		errs := libjq.Compile(program, jq.JvArray())
