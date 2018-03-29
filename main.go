@@ -53,6 +53,7 @@ Supported formats:
 	rootCmd.Flags().BoolP("ascii-output", "a", false, "force output to be ascii instead of UTF-8")
 	rootCmd.Flags().BoolP("color-output", "C", true, "colorize the output")
 	rootCmd.Flags().BoolP("monochrome-output", "M", false, "monochrome (don't colorize the output)")
+	rootCmd.Flags().BoolP("maintain-format", "m", false, "maintain original format (don't output JSON)")
 	rootCmd.Flags().BoolP("sort-keys", "S", false, "sort keys of objects on output")
 	rootCmd.Flags().BoolP("compact", "c", false, "compact instead of pretty-printed output")
 	rootCmd.Flags().BoolP("tab", "t", false, "use tabs for indentation")
@@ -86,6 +87,7 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 	compact, _ := cmd.Flags().GetBool("compact")
 	tab, _ := cmd.Flags().GetBool("tab")
 	monochrome, _ := cmd.Flags().GetBool("monochrome-output")
+	maintainFormat, _ := cmd.Flags().GetBool("maintain-format")
 	if runtime.GOOS == "windows" {
 		monochrome = true
 	}
@@ -172,7 +174,15 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			if raw {
 				printRaw(resultJv, ascii, flags)
 			} else {
-				fmt.Println(resultJv.Dump(flags))
+				if maintainFormat {
+					output, err := enc.UnmarshalJSONBytes([]byte(resultJv.Dump(jq.JvPrintNone)))
+					if err != nil {
+						return fmt.Errorf("failed to encode jq program output as %s: %s", formatName, err)
+					}
+					fmt.Println(string(output))
+				} else {
+					fmt.Println(resultJv.Dump(flags))
+				}
 			}
 		}
 	}

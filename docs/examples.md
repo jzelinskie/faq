@@ -12,6 +12,7 @@ Flags:
   -c, --compact             compact instead of pretty-printed output
   -f, --format string       input format (default "auto")
   -h, --help                help for faq
+  -m, --maintain-format     maintain original format (don't output JSON)
   -M, --monochrome-output   monochrome (don't colorize the output)
   -r, --raw                 output raw strings, not JSON texts
   -S, --sort-keys           sort keys of objects on output
