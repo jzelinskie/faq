@@ -4,12 +4,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 
+	"github.com/Azure/draft/pkg/linguist"
 	"github.com/ashb/jqrepl/jq"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
+
+	"github.com/jzelinskie/faq/formats"
 )
 
 func main() {
@@ -130,11 +135,18 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			panic("failed to find format flag")
 		}
 
+		var enc formats.Encoding
+		var ok bool
 		if formatName == "auto" {
-			formatName = detectFormat(fileBytes, path)
+			enc, ok = detectFormat(fileBytes, path)
+		} else {
+			enc, ok = formats.ByName[strings.ToLower(formatName)]
+		}
+		if !ok {
+			return fmt.Errorf("no supported format found named %s", formatName)
 		}
 
-		jsonifiedFile, err := fileToJSON(formatName, fileBytes)
+		jsonifiedFile, err := enc.MarshalJSONBytes(fileBytes)
 		if err != nil {
 			return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
 		}
@@ -166,6 +178,27 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func detectFormat(fileBytes []byte, path string) (formats.Encoding, bool) {
+	if ext := filepath.Ext(path); ext != "" {
+		if format, ok := formats.ByName[ext[1:]]; ok {
+			return format, true
+		}
+	}
+
+	format := linguist.LanguageByContents(fileBytes, linguist.LanguageHints(path))
+	format = strings.ToLower(format)
+
+	// This is what linguist says when it has no idea what it's talking about.
+	// For now, just fallback to JSON.
+	if format == "coq" {
+		format = "json"
+	}
+
+	// Go isn't smart enough to do this in one line.
+	enc, ok := formats.ByName[format]
+	return enc, ok
 }
 
 func printRaw(resultJv *jq.Jv, ascii bool, flags jq.JvPrintFlags) {
