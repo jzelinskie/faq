@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -144,11 +145,14 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		var ok bool
 		if formatName == "auto" {
 			enc, ok = detectFormat(fileBytes, path)
+			if !ok {
+				return errors.New("failed to detect format of the input")
+			}
 		} else {
 			enc, ok = formats.ByName[strings.ToLower(formatName)]
-		}
-		if !ok {
-			return fmt.Errorf("no supported format found named %s", formatName)
+			if !ok {
+				return fmt.Errorf("no supported format found named %s", formatName)
+			}
 		}
 
 		jsonifiedFile, err := enc.MarshalJSONBytes(fileBytes)
