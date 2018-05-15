@@ -10,12 +10,12 @@ import (
 	"strings"
 
 	"github.com/Azure/draft/pkg/linguist"
-	"github.com/ashb/jqrepl/jq"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/jzelinskie/faq/formats"
+	"github.com/jzelinskie/faq/jq"
 )
 
 func main() {

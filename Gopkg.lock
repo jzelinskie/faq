@@ -25,10 +25,16 @@
   version = "v0.1.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/cheekybits/is"
+  packages = ["."]
+  revision = "68e9c0620927fb5427fda3708222d0edee89eae9"
+
+[[projects]]
   name = "github.com/clbanning/mxj"
   packages = ["."]
-  revision = "eb2e8a1ed220896d2b16890436447a0eae496fae"
-  version = "v1.6.2"
+  revision = "1f00e0bf9bacd7ea9c93d27594d1d1f5a41bac36"
+  version = "v1.8"
 
 [[projects]]
   name = "github.com/ghodss/yaml"
@@ -43,7 +49,7 @@
     "bson",
     "internal/json"
   ]
-  revision = "baa28fcb8e7d5dfab92026c0920cb6c9ae72faa2"
+  revision = "efe0945164a7e582241f37ae8983c075f8f2e870"
 
 [[projects]]
   name = "github.com/inconshreveable/mousetrap"
@@ -67,13 +73,13 @@
   branch = "master"
   name = "github.com/spf13/cobra"
   packages = ["."]
-  revision = "a1f051bc3eba734da4772d60e2d677f47cf93ef4"
+  revision = "ef82de70bb3f60c65fb8eebacbb2d122ef517385"
 
 [[projects]]
   name = "github.com/spf13/pflag"
   packages = ["."]
-  revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
-  version = "v1.0.0"
+  revision = "583c0c0531f06d5278b7d917446061adc344b5cd"
+  version = "v1.0.1"
 
 [[projects]]
   branch = "master"
@@ -85,7 +91,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "88942b9c40a4c9d203b82b3731787b672d6e809b"
+  revision = "1a580b3eff7814fc9b40602fd35256c63b50f491"
 
 [[projects]]
   branch = "master"
@@ -94,17 +100,17 @@
     "unix",
     "windows"
   ]
-  revision = "13d03a9a82fba647c21a0ef8fba44a795d0f0835"
+  revision = "7c87d13f8e835d2fb3a70a2912c811ed0c1d241b"
 
 [[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  revision = "86f5ed62f8a0ee96bd888d2efdfd6d4fb100a4eb"
-  version = "v2.2.0"
+  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
+  version = "v2.2.1"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c1ebfa75e3d3fdcbcccf4437e3b80b597827245093a58ce051e1834d856bba1c"
+  inputs-digest = "61d8828eb7340a0044a935d6dd3b0c1a12d15693e05c3bbfe0a7b452b652972f"
   solver-name = "gps-cdcl"
   solver-version = 1
