@@ -6,4 +6,4 @@ WORKDIR /go/src/github.com/jzelinskie/faq
 COPY . .
 
 RUN dep ensure
-RUN go install -v --ldflags '-linkmode external -extldflags "-static"' github.com/jzelinskie/faq
+RUN go install -v --ldflags '-s -w -linkmode external -extldflags "-v -static"' github.com/jzelinskie/faq
