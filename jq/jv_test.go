@@ -222,5 +222,4 @@ func TestJvInvalidWithMessage_object(t *testing.T) {
 	str, ok := jv.GetInvalidMessageAsString()
 	is.True(ok)
 	is.Equal("{}", str)
-
 }

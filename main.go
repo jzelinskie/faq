@@ -103,7 +103,7 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		flags = flags | jq.JvPrintSorted
 	}
 	if ascii {
-		flags = flags | jq.JvPrintAscii
+		flags = flags | jq.JvPrintASCII
 	}
 	if stdoutIsTTY {
 		flags = flags | jq.JvPrintIsATty
@@ -222,7 +222,7 @@ func detectFormat(fileBytes []byte, path string) (formats.Encoding, bool) {
 
 func printRaw(resultJv *jq.Jv, ascii bool, flags jq.JvPrintFlags) {
 	if ascii && (resultJv.Kind() == jq.JvKindString) {
-		fmt.Println(resultJv.Dump(jq.JvPrintAscii))
+		fmt.Println(resultJv.Dump(jq.JvPrintASCII))
 	} else if resultJv.Kind() == jq.JvKindString {
 		resultStr, err := resultJv.String()
 		if err != nil {

@@ -56,14 +56,30 @@ type Jv struct {
 }
 
 const (
+	// JvKindInvalid is returned when you've tried something that does not make
+	// make sense (e.g. calling jv_array_get with an out of bounds index).
 	JvKindInvalid JvKind = C.JV_KIND_INVALID
-	JvKindNull    JvKind = C.JV_KIND_NULL
-	JvKindFalse   JvKind = C.JV_KIND_FALSE
-	JvKindTrue    JvKind = C.JV_KIND_TRUE
-	JvKindNumber  JvKind = C.JV_KIND_NUMBER
-	JvKindString  JvKind = C.JV_KIND_STRING
-	JvKindArray   JvKind = C.JV_KIND_ARRAY
-	JvKindObject  JvKind = C.JV_KIND_OBJECT
+
+	// JvKindNull represents the JSON value "null".
+	JvKindNull JvKind = C.JV_KIND_NULL
+
+	// JvKindFalse represents the JSON value "false".
+	JvKindFalse JvKind = C.JV_KIND_FALSE
+
+	// JvKindTrue represents the JSON value "true".
+	JvKindTrue JvKind = C.JV_KIND_TRUE
+
+	// JvKindNumber represents the JSON type "number".
+	JvKindNumber JvKind = C.JV_KIND_NUMBER
+
+	// JvKindString represents the JSON type "string".
+	JvKindString JvKind = C.JV_KIND_STRING
+
+	// JvKindArray represents the JSON type "array".
+	JvKindArray JvKind = C.JV_KIND_ARRAY
+
+	// JvKindObject represents the JSON type "object".
+	JvKindObject JvKind = C.JV_KIND_OBJECT
 )
 
 // String returns a string representation of what type this Jv contains
@@ -130,9 +146,8 @@ func JvFromFloat(n float64) *Jv {
 func JvFromBool(b bool) *Jv {
 	if b {
 		return &Jv{C.jv_true()}
-	} else {
-		return &Jv{C.jv_false()}
 	}
+	return &Jv{C.jv_false()}
 }
 
 func jvFromArray(val reflect.Value) (*Jv, error) {
@@ -171,6 +186,8 @@ func jvFromMap(val reflect.Value) (*Jv, error) {
 	return ret, nil
 }
 
+// JvFromInterface uses reflection to dynamically transform an Go types into a
+// Jv.
 func JvFromInterface(intf interface{}) (*Jv, error) {
 	if intf == nil {
 		return JvNull(), nil
@@ -376,30 +393,55 @@ func (jv *Jv) ToGoVal() interface{} {
 	}
 }
 
+// JvPrintFlags represents the type of flags used for configuring how Jvs are
+// printed.
 type JvPrintFlags int
 
 const (
-	JvPrintNone     JvPrintFlags = 0                   // None of the below
-	JvPrintPretty   JvPrintFlags = C.JV_PRINT_PRETTY   // Print across multiple lines
-	JvPrintAscii    JvPrintFlags = C.JV_PRINT_ASCII    // Escape non-ascii printable characters
-	JvPrintColour   JvPrintFlags = C.JV_PRINT_COLOUR   // Include ANSI color escapes based on data types
-	JvPrintSorted   JvPrintFlags = C.JV_PRINT_SORTED   // Sort output keys
-	JvPrintInvalid  JvPrintFlags = C.JV_PRINT_INVALID  // Print invalid as "<invalid>"
-	JvPrintRefCount JvPrintFlags = C.JV_PRINT_REFCOUNT // Display refcount of objects in in parenthesis
-	JvPrintTab      JvPrintFlags = C.JV_PRINT_TAB      // Indent with tabs,
-	JvPrintIsATty   JvPrintFlags = C.JV_PRINT_ISATTY   //
-	JvPrintSpace0   JvPrintFlags = C.JV_PRINT_SPACE0   // Indent with zero extra chars beyond the parent bracket
-	JvPrintSpace1   JvPrintFlags = C.JV_PRINT_SPACE1   // Indent with zero extra chars beyond the parent bracket
-	JvPrintSpace2   JvPrintFlags = C.JV_PRINT_SPACE2   // Indent with zero extra chars beyond the parent bracket
+	// JvPrintNone is a blank set of flags.
+	JvPrintNone JvPrintFlags = 0
+
+	// JvPrintPretty prints across multiple lines.
+	JvPrintPretty JvPrintFlags = C.JV_PRINT_PRETTY
+
+	// JvPrintASCII escapes non-ascii printable characters.
+	JvPrintASCII JvPrintFlags = C.JV_PRINT_ASCII
+
+	// JvPrintColour includes ANSI color escapes based on data types.
+	JvPrintColour JvPrintFlags = C.JV_PRINT_COLOUR
+
+	// JvPrintSorted sorts the output keys.
+	JvPrintSorted JvPrintFlags = C.JV_PRINT_SORTED
+
+	// JvPrintInvalid prints invalid values as "<invalid>".
+	JvPrintInvalid JvPrintFlags = C.JV_PRINT_INVALID
+
+	// JvPrintRefCount displays refcounts of objects in parenthesis.
+	JvPrintRefCount JvPrintFlags = C.JV_PRINT_REFCOUNT
+
+	// JvPrintTab indents with tabs.
+	JvPrintTab JvPrintFlags = C.JV_PRINT_TAB
+
+	// JvPrintIsATty TODO(jzelinskie): figure out what this even does
+	JvPrintIsATty JvPrintFlags = C.JV_PRINT_ISATTY
+
+	// JvPrintSpace0 indents with zero extra chars beyond the parent bracket.
+	JvPrintSpace0 JvPrintFlags = C.JV_PRINT_SPACE0
+
+	// JvPrintSpace1 indents with one extra chars beyond the parent bracket.
+	JvPrintSpace1 JvPrintFlags = C.JV_PRINT_SPACE1
+
+	// JvPrintSpace2 indents with two extra chars beyond the parent bracket.
+	JvPrintSpace2 JvPrintFlags = C.JV_PRINT_SPACE2
 )
 
 // Dump produces a human readable version of the string with the requested formatting.
 //
 // Consumes the invocant
 func (jv *Jv) Dump(flags JvPrintFlags) string {
-	jv_str := Jv{C.jv_dump_string(jv.jv, C.int(flags))}
-	defer jv_str.Free()
-	return jv_str._string()
+	jvStr := Jv{C.jv_dump_string(jv.jv, C.int(flags))}
+	defer jvStr.Free()
+	return jvStr._string()
 }
 
 // JvArray creates a new, empty array-typed JV
@@ -435,6 +477,7 @@ func (jv *Jv) ArrayGet(idx int) *Jv {
 	return &Jv{C.jv_array_get(jv.jv, C.int(idx))}
 }
 
+// JvObject allocates a new Jv of type object.
 func JvObject() *Jv {
 	return &Jv{C.jv_object()}
 }
