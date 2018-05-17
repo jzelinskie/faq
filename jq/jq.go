@@ -13,8 +13,7 @@
 package jq
 
 /*
-#cgo LDFLAGS: -ljq
-#cgo pkg-config: oniguruma
+#cgo LDFLAGS: -ljq -lonig
 
 #include <jq.h>
 #include <jv.h>
