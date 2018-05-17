@@ -221,9 +221,9 @@ func detectFormat(fileBytes []byte, path string) (formats.Encoding, bool) {
 }
 
 func printRaw(resultJv *jq.Jv, ascii bool, flags jq.JvPrintFlags) {
-	if ascii && (resultJv.Kind() == jq.JV_KIND_STRING) {
+	if ascii && (resultJv.Kind() == jq.JvKindString) {
 		fmt.Println(resultJv.Dump(jq.JvPrintAscii))
-	} else if resultJv.Kind() == jq.JV_KIND_STRING {
+	} else if resultJv.Kind() == jq.JvKindString {
 		resultStr, err := resultJv.String()
 		if err != nil {
 			panic("failed to convert string jv into a Go string")

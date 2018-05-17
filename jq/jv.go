@@ -56,14 +56,14 @@ type Jv struct {
 }
 
 const (
-	JV_KIND_INVALID JvKind = C.JV_KIND_INVALID
-	JV_KIND_NULL    JvKind = C.JV_KIND_NULL
-	JV_KIND_FALSE   JvKind = C.JV_KIND_FALSE
-	JV_KIND_TRUE    JvKind = C.JV_KIND_TRUE
-	JV_KIND_NUMBER  JvKind = C.JV_KIND_NUMBER
-	JV_KIND_STRING  JvKind = C.JV_KIND_STRING
-	JV_KIND_ARRAY   JvKind = C.JV_KIND_ARRAY
-	JV_KIND_OBJECT  JvKind = C.JV_KIND_OBJECT
+	JvKindInvalid JvKind = C.JV_KIND_INVALID
+	JvKindNull    JvKind = C.JV_KIND_NULL
+	JvKindFalse   JvKind = C.JV_KIND_FALSE
+	JvKindTrue    JvKind = C.JV_KIND_TRUE
+	JvKindNumber  JvKind = C.JV_KIND_NUMBER
+	JvKindString  JvKind = C.JV_KIND_STRING
+	JvKindArray   JvKind = C.JV_KIND_ARRAY
+	JvKindObject  JvKind = C.JV_KIND_OBJECT
 )
 
 // String returns a string representation of what type this Jv contains
@@ -71,21 +71,21 @@ func (kind JvKind) String() string {
 	// Rather than rely on converting from a C string to go every time, store our
 	// own list
 	switch kind {
-	case JV_KIND_INVALID:
+	case JvKindInvalid:
 		return "<invalid>"
-	case JV_KIND_NULL:
+	case JvKindNull:
 		return "null"
-	case JV_KIND_FALSE:
+	case JvKindFalse:
 		return "boolean"
-	case JV_KIND_TRUE:
+	case JvKindTrue:
 		return "boolean"
-	case JV_KIND_NUMBER:
+	case JvKindNumber:
 		return "number"
-	case JV_KIND_STRING:
+	case JvKindString:
 		return "string"
-	case JV_KIND_ARRAY:
+	case JvKindArray:
 		return "array"
-	case JV_KIND_OBJECT:
+	case JvKindObject:
 		return "object"
 	default:
 		return "<unkown>"
