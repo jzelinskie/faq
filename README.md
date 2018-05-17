@@ -1,4 +1,5 @@
 # faq
+
 [![Go Report Card](https://goreportcard.com/badge/github.com/jzelinskie/faq?style=flat-square)](https://goreportcard.com/report/github.com/jzelinskie/faq)
 [![Build Status Travis](https://img.shields.io/travis/jzelinskie/faq.svg?style=flat-square&&branch=master)](https://travis-ci.org/jzelinskie/faq)
 [![Godoc](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](https://godoc.org/github.com/jzelinskie/faq)
@@ -26,8 +27,22 @@ For example usage, read [the examples doc].
 
 ## Installation
 
-faq is still under heavy development and has yet to make a binary release.
-Please follow the development instructions build your own binary.
+faq is still under heavy development and has only unstable binary releases.
+Behavior such as command-line flags may change causing shell scripts using faq to break after upgrading.
+
+### Linux
+
+```sh
+curl -Lo /usr/local/bin/faq https://github.com/jzelinskie/faq/releases/download/0.0.1/faq-linux-amd64
+chmod +x /usr/local/bin/faq
+```
+
+### macOS
+
+```sh
+brew tap jzelinskie/faq
+brew install faq
+```
 
 ## Development
 
