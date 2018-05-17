@@ -65,25 +65,6 @@ Supported formats:
 }
 
 func runCmdFunc(cmd *cobra.Command, args []string) error {
-	stdoutIsTTY := terminal.IsTerminal(int(os.Stdout.Fd()))
-	stdinIsTTY := terminal.IsTerminal(int(os.Stdin.Fd()))
-
-	// Figure out which argument is the program, if there is one.
-	program := ""
-	pathArgs := []string{}
-	if !stdinIsTTY && len(args) == 0 {
-		program = "."
-		pathArgs = []string{"/dev/stdin"}
-	} else if !stdinIsTTY && len(args) == 1 {
-		program = args[0]
-		pathArgs = []string{"/dev/stdin"}
-	} else if len(args) >= 2 {
-		program = args[0]
-		pathArgs = args[1:]
-	} else {
-		return fmt.Errorf("not enough arguments provided")
-	}
-
 	raw, _ := cmd.Flags().GetBool("raw")
 	ascii, _ := cmd.Flags().GetBool("ascii-output")
 	color, _ := cmd.Flags().GetBool("color-output")
@@ -94,6 +75,27 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 	maintainFormat, _ := cmd.Flags().GetBool("maintain-format")
 	if runtime.GOOS == "windows" {
 		monochrome = true
+	}
+
+	// Check to see execution is in an interactive terminal and set the args
+	// and flags as such.
+	stdoutIsTTY := terminal.IsTerminal(int(os.Stdout.Fd()))
+	stdinIsTTY := terminal.IsTerminal(int(os.Stdin.Fd()))
+	program := ""
+	pathArgs := []string{}
+	if !stdinIsTTY && len(args) == 0 {
+		program = "."
+		pathArgs = []string{"/dev/stdin"}
+		monochrome = true
+	} else if !stdinIsTTY && len(args) == 1 {
+		program = args[0]
+		pathArgs = []string{"/dev/stdin"}
+		monochrome = true
+	} else if len(args) >= 2 {
+		program = args[0]
+		pathArgs = args[1:]
+	} else {
+		return fmt.Errorf("not enough arguments provided")
 	}
 
 	var flags jq.JvPrintFlags
