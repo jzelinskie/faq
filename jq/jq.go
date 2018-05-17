@@ -55,7 +55,7 @@ import (
 // Jq encapsulates the state needed to interface with the libjq C library
 type Jq struct {
 	_state       *C.struct_jq_state
-	errorStoreId uint64
+	errorStoreID uint64
 	running      sync.WaitGroup
 }
 
@@ -88,9 +88,9 @@ func (jq *Jq) Close() {
 		C.jq_teardown(&jq._state)
 		jq._state = nil
 	}
-	if jq.errorStoreId != 0 {
-		globalErrorChannels.Delete(jq.errorStoreId)
-		jq.errorStoreId = 0
+	if jq.errorStoreID != 0 {
+		globalErrorChannels.Delete(jq.errorStoreID)
+		jq.errorStoreID = 0
 	}
 }
 
@@ -189,16 +189,16 @@ func (jq *Jq) Start(program string, args *Jv) (in chan<- *Jv, out <-chan *Jv, er
 		return
 	}
 
-	if jq.errorStoreId != 0 {
+	if jq.errorStoreID != 0 {
 		// We might have called Compile
-		globalErrorChannels.Delete(jq.errorStoreId)
+		globalErrorChannels.Delete(jq.errorStoreID)
 	}
-	jq.errorStoreId = globalErrorChannels.Add(cErr)
+	jq.errorStoreID = globalErrorChannels.Add(cErr)
 
 	// Because we can't pass a function pointer to an exported Go func we have to
 	// call a C function which uses the exported fund for us.
 	// https://github.com/golang/go/wiki/cgo#function-variables
-	C.install_jq_error_cb(jq._state, C.ulonglong(jq.errorStoreId))
+	C.install_jq_error_cb(jq._state, C.ulonglong(jq.errorStoreID))
 
 	jq.running.Add(1)
 	go func() {
@@ -279,13 +279,13 @@ func (jq *Jq) Compile(prog string, args *Jv) (errs []error) {
 
 	cErr := make(chan error)
 
-	if jq.errorStoreId != 0 {
+	if jq.errorStoreID != 0 {
 		// We might have called Compile
-		globalErrorChannels.Delete(jq.errorStoreId)
+		globalErrorChannels.Delete(jq.errorStoreID)
 	}
-	jq.errorStoreId = globalErrorChannels.Add(cErr)
+	jq.errorStoreID = globalErrorChannels.Add(cErr)
 
-	C.install_jq_error_cb(jq._state, C.ulonglong(jq.errorStoreId))
+	C.install_jq_error_cb(jq._state, C.ulonglong(jq.errorStoreID))
 	defer C.install_jq_error_cb(jq._state, 0)
 	var wg sync.WaitGroup
 
@@ -304,8 +304,8 @@ func (jq *Jq) Compile(prog string, args *Jv) (errs []error) {
 	cErr <- nil // Sentinel to break the loop above
 
 	wg.Wait()
-	globalErrorChannels.Delete(jq.errorStoreId)
-	jq.errorStoreId = 0
+	globalErrorChannels.Delete(jq.errorStoreID)
+	jq.errorStoreID = 0
 
 	if !compiled && len(errs) == 0 {
 		return []error{fmt.Errorf("jq_compile returned error, but no errors were reported. Oops")}
