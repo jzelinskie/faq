@@ -22,7 +22,7 @@
 package jq
 
 /*
-#cgo LDFLAGS: -ljq
+#cgo LDFLAGS: -ljq -lonig
 
 #include <stdlib.h>
 
