@@ -27,4 +27,5 @@ func (xmlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 
 func init() {
 	ByName["xml"] = xmlEncoding{}
+	ByName["svg"] = xmlEncoding{}
 }
