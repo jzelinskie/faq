@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Jimmy Zelinskie
+// Copyright (c) 2018 Jimmy Zelinskie
 // Copyright (c) 2015 Ash Berlin
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
