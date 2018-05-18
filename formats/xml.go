@@ -9,7 +9,7 @@ import (
 type xmlEncoding struct{}
 
 func (xmlEncoding) MarshalJSONBytes(xmlBytes []byte) ([]byte, error) {
-	xmap, err := mxj.NewMapXml(xmlBytes, true)
+	xmap, err := mxj.NewMapXml(xmlBytes)
 	if err != nil {
 		return nil, err
 	}

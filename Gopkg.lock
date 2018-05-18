@@ -19,12 +19,6 @@
   version = "v0.3.0"
 
 [[projects]]
-  name = "github.com/ashb/jqrepl"
-  packages = ["jq"]
-  revision = "70de3caa122cf7c7a737f28b666ab0d541560598"
-  version = "v0.1.0"
-
-[[projects]]
   branch = "master"
   name = "github.com/cheekybits/is"
   packages = ["."]
@@ -111,6 +105,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "61d8828eb7340a0044a935d6dd3b0c1a12d15693e05c3bbfe0a7b452b652972f"
+  inputs-digest = "f6bf12cccbc24e0d44d7faa1276a1f8ac2bc9ebfde8de74e4878d0c9fc1123ff"
   solver-name = "gps-cdcl"
   solver-version = 1
