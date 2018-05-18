@@ -24,8 +24,9 @@ package jq_test
 import (
 	"testing"
 
-	"github.com/ashb/jqrepl/jq"
 	"github.com/cheekybits/is"
+
+	"github.com/jzelinskie/faq/jq"
 )
 
 func TestJvKind(t *testing.T) {
@@ -36,8 +37,8 @@ func TestJvKind(t *testing.T) {
 		jq.JvKind
 		string
 	}{
-		{jq.JvNull(), jq.JV_KIND_NULL, "null"},
-		{jq.JvFromString("a"), jq.JV_KIND_STRING, "string"},
+		{jq.JvNull(), jq.JvKindNull, "null"},
+		{jq.JvFromString("a"), jq.JvKindString, "string"},
 	}
 
 	for _, c := range cases {
@@ -80,7 +81,7 @@ func TestJvFromJSONString(t *testing.T) {
 	jv, err := jq.JvFromJSONString("[]")
 	is.NoErr(err)
 	is.OK(jv)
-	is.Equal(jv.Kind(), jq.JV_KIND_ARRAY)
+	is.Equal(jv.Kind(), jq.JvKindArray)
 
 	jv, err = jq.JvFromJSONString("not valid")
 	is.Err(err)
@@ -92,7 +93,7 @@ func TestJvFromFloat(t *testing.T) {
 
 	jv := jq.JvFromFloat(1.23)
 	is.OK(jv)
-	is.Equal(jv.Kind(), jq.JV_KIND_NUMBER)
+	is.Equal(jv.Kind(), jq.JvKindNumber)
 	gv := jv.ToGoVal()
 	n, ok := gv.(float64)
 	is.True(ok)
@@ -106,24 +107,24 @@ func TestJvFromInterface(t *testing.T) {
 	jv, err := jq.JvFromInterface(nil)
 	is.NoErr(err)
 	is.OK(jv)
-	is.Equal(jv.Kind(), jq.JV_KIND_NULL)
+	is.Equal(jv.Kind(), jq.JvKindNull)
 
 	// Boolean
 	jv, err = jq.JvFromInterface(true)
 	is.NoErr(err)
 	is.OK(jv)
-	is.Equal(jv.Kind(), jq.JV_KIND_TRUE)
+	is.Equal(jv.Kind(), jq.JvKindTrue)
 
 	jv, err = jq.JvFromInterface(false)
 	is.NoErr(err)
 	is.OK(jv)
-	is.Equal(jv.Kind(), jq.JV_KIND_FALSE)
+	is.Equal(jv.Kind(), jq.JvKindFalse)
 
 	// Float
 	jv, err = jq.JvFromInterface(1.23)
 	is.NoErr(err)
 	is.OK(jv)
-	is.Equal(jv.Kind(), jq.JV_KIND_NUMBER)
+	is.Equal(jv.Kind(), jq.JvKindNumber)
 	gv := jv.ToGoVal()
 	n, ok := gv.(float64)
 	is.True(ok)
@@ -133,7 +134,7 @@ func TestJvFromInterface(t *testing.T) {
 	jv, err = jq.JvFromInterface(456)
 	is.NoErr(err)
 	is.OK(jv)
-	is.Equal(jv.Kind(), jq.JV_KIND_NUMBER)
+	is.Equal(jv.Kind(), jq.JvKindNumber)
 	gv = jv.ToGoVal()
 	n2, ok := gv.(int)
 	is.True(ok)
@@ -143,7 +144,7 @@ func TestJvFromInterface(t *testing.T) {
 	jv, err = jq.JvFromInterface("test")
 	is.NoErr(err)
 	is.OK(jv)
-	is.Equal(jv.Kind(), jq.JV_KIND_STRING)
+	is.Equal(jv.Kind(), jq.JvKindString)
 	gv = jv.ToGoVal()
 	s, ok := gv.(string)
 	is.True(ok)
@@ -152,14 +153,14 @@ func TestJvFromInterface(t *testing.T) {
 	jv, err = jq.JvFromInterface([]string{"test", "one", "two"})
 	is.NoErr(err)
 	is.OK(jv)
-	is.Equal(jv.Kind(), jq.JV_KIND_ARRAY)
+	is.Equal(jv.Kind(), jq.JvKindArray)
 	gv = jv.ToGoVal()
 	is.Equal(gv.([]interface{})[2], "two")
 
 	jv, err = jq.JvFromInterface(map[string]int{"one": 1, "two": 2})
 	is.NoErr(err)
 	is.OK(jv)
-	is.Equal(jv.Kind(), jq.JV_KIND_OBJECT)
+	is.Equal(jv.Kind(), jq.JvKindObject)
 	gv = jv.ToGoVal()
 	is.Equal(gv.(map[string]interface{})["two"], 2)
 }
@@ -189,7 +190,7 @@ func TestJvInvalid(t *testing.T) {
 	is.False(ok) // "Expected no Invalid message"
 
 	jv = jv.GetInvalidMessage()
-	is.Equal(jv.Kind(), jq.JV_KIND_NULL)
+	is.Equal(jv.Kind(), jq.JvKindNull)
 }
 
 func TestJvInvalidWithMessage_string(t *testing.T) {
@@ -200,7 +201,7 @@ func TestJvInvalidWithMessage_string(t *testing.T) {
 	is.False(jv.IsValid())
 
 	msg := jv.Copy().GetInvalidMessage()
-	is.Equal(msg.Kind(), jq.JV_KIND_STRING)
+	is.Equal(msg.Kind(), jq.JvKindString)
 	msg.Free()
 
 	str, ok := jv.GetInvalidMessageAsString()
@@ -216,7 +217,7 @@ func TestJvInvalidWithMessage_object(t *testing.T) {
 	is.False(jv.IsValid())
 
 	msg := jv.Copy().GetInvalidMessage()
-	is.Equal(msg.Kind(), jq.JV_KIND_OBJECT)
+	is.Equal(msg.Kind(), jq.JvKindObject)
 	msg.Free()
 
 	str, ok := jv.GetInvalidMessageAsString()

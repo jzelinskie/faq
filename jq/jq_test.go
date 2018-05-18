@@ -25,7 +25,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ashb/jqrepl/jq"
+	"github.com/jzelinskie/faq/jq"
 )
 
 func TestJqNewClose(t *testing.T) {
