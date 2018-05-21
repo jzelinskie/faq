@@ -1,9 +1,12 @@
 FROM golang:alpine
-RUN apk add --no-cache git jq-dev gcc libc-dev oniguruma-dev
+RUN apk add --no-cache git jq-dev gcc libc-dev oniguruma-dev bash
 
 RUN go get -u github.com/golang/dep/cmd/...
 WORKDIR /go/src/github.com/jzelinskie/faq
 COPY . .
 
-RUN dep ensure
+RUN go get -u github.com/golang/dep/...
+RUN go get -u github.com/golang/lint/...
+RUN go get -u golang.org/x/tools/cmd/...
+RUN /go/src/github.com/jzelinskie/faq/test.sh
 RUN go install -v --ldflags '-s -w -linkmode external -extldflags "-v -static"' github.com/jzelinskie/faq
