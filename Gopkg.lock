@@ -9,8 +9,8 @@
     "pkg/linguist/tokenizer",
     "pkg/osutil"
   ]
-  revision = "53924464463d2474f410415f1310d2b95fb8965f"
-  version = "v0.12.0"
+  revision = "fdc29c553a45600ac4f795f3485d4bb9a80c7862"
+  version = "v0.14.1"
 
 [[projects]]
   name = "github.com/BurntSushi/toml"
@@ -25,10 +25,10 @@
   revision = "68e9c0620927fb5427fda3708222d0edee89eae9"
 
 [[projects]]
+  branch = "master"
   name = "github.com/clbanning/mxj"
   packages = ["."]
-  revision = "1f00e0bf9bacd7ea9c93d27594d1d1f5a41bac36"
-  version = "v1.8"
+  revision = "32282164326064599d3a83e53adcb9b318d78d90"
 
 [[projects]]
   name = "github.com/ghodss/yaml"
@@ -64,10 +64,10 @@
   version = "v1.0.5"
 
 [[projects]]
-  branch = "master"
   name = "github.com/spf13/cobra"
   packages = ["."]
   revision = "ef82de70bb3f60c65fb8eebacbb2d122ef517385"
+  version = "v0.0.3"
 
 [[projects]]
   name = "github.com/spf13/pflag"
@@ -105,6 +105,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f6bf12cccbc24e0d44d7faa1276a1f8ac2bc9ebfde8de74e4878d0c9fc1123ff"
+  inputs-digest = "b1084b8e2a0b6ce235e4c86ed42da00bfdbbba95c3588df12816b5681515479a"
   solver-name = "gps-cdcl"
   solver-version = 1

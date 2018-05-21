@@ -1,15 +1,11 @@
 package formats
 
-import (
-	"encoding/json"
-
-	"github.com/clbanning/mxj"
-)
+import "github.com/clbanning/mxj"
 
 type xmlEncoding struct{}
 
 func (xmlEncoding) MarshalJSONBytes(xmlBytes []byte) ([]byte, error) {
-	xmap, err := mxj.NewMapXml(xmlBytes)
+	xmap, err := mxj.NewMapXml(xmlBytes, true)
 	if err != nil {
 		return nil, err
 	}
@@ -17,12 +13,11 @@ func (xmlEncoding) MarshalJSONBytes(xmlBytes []byte) ([]byte, error) {
 }
 
 func (xmlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
-	var obj interface{}
-	err := json.Unmarshal(jsonBytes, &obj)
+	xmap, err := mxj.NewMapJson(jsonBytes)
 	if err != nil {
 		return nil, err
 	}
-	return mxj.AnyXml(obj)
+	return xmap.Xml()
 }
 
 func init() {
