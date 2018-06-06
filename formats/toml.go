@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/BurntSushi/toml"
+	"github.com/alecthomas/chroma/quick"
 )
 
 type tomlEncoding struct{}
@@ -30,6 +31,16 @@ func (tomlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func (tomlEncoding) Raw(tomlBytes []byte) ([]byte, error) { return tomlBytes, nil }
+
+func (tomlEncoding) Color(tomlBytes []byte) ([]byte, error) {
+	var b bytes.Buffer
+	if err := quick.Highlight(&b, string(tomlBytes), "toml", ChromaFormatter(), ChromaStyle()); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
 }
 
 func init() {

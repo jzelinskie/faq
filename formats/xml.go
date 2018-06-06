@@ -1,6 +1,11 @@
 package formats
 
-import "github.com/clbanning/mxj"
+import (
+	"bytes"
+
+	"github.com/alecthomas/chroma/quick"
+	"github.com/clbanning/mxj"
+)
 
 type xmlEncoding struct{}
 
@@ -18,6 +23,15 @@ func (xmlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 		return nil, err
 	}
 	return xmap.Xml()
+}
+
+func (xmlEncoding) Raw(xmlBytes []byte) ([]byte, error) { return xmlBytes, nil }
+func (xmlEncoding) Color(xmlBytes []byte) ([]byte, error) {
+	var b bytes.Buffer
+	if err := quick.Highlight(&b, string(xmlBytes), "xml", ChromaFormatter(), ChromaStyle()); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
 }
 
 func init() {
