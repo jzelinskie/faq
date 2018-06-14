@@ -4,6 +4,8 @@ package formats
 type Encoding interface {
 	MarshalJSONBytes([]byte) ([]byte, error)
 	UnmarshalJSONBytes([]byte) ([]byte, error)
+	Raw([]byte) ([]byte, error)
+	Color([]byte) ([]byte, error)
 }
 
 // ByName is a mapping from dynamically registered encoding names to Encoding

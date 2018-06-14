@@ -50,13 +50,11 @@ Supported formats:
 
 	rootCmd.Flags().Bool("debug", false, "enable debug logging")
 	rootCmd.Flags().StringP("format", "f", "auto", "input format")
+	rootCmd.Flags().StringP("output-format", "o", "auto", "output format")
 	rootCmd.Flags().BoolP("raw", "r", false, "output raw strings, not JSON texts")
-	rootCmd.Flags().BoolP("ascii-output", "a", false, "force output to be ascii instead of UTF-8")
 	rootCmd.Flags().BoolP("color-output", "C", true, "colorize the output")
 	rootCmd.Flags().BoolP("monochrome-output", "M", false, "monochrome (don't colorize the output)")
-	rootCmd.Flags().BoolP("maintain-format", "m", false, "maintain original format (don't output JSON)")
-	rootCmd.Flags().BoolP("sort-keys", "S", false, "sort keys of objects on output")
-	rootCmd.Flags().BoolP("compact", "c", false, "compact instead of pretty-printed output")
+	//rootCmd.Flags().BoolP("compact", "c", false, "compact instead of pretty-printed output")
 	rootCmd.Flags().BoolP("tab", "t", false, "use tabs for indentation")
 
 	rootCmd.Flags().MarkHidden("debug")
@@ -65,14 +63,12 @@ Supported formats:
 }
 
 func runCmdFunc(cmd *cobra.Command, args []string) error {
+	inputFormat, _ := cmd.Flags().GetString("format")
+	outputFormat, _ := cmd.Flags().GetString("output-format")
 	raw, _ := cmd.Flags().GetBool("raw")
-	ascii, _ := cmd.Flags().GetBool("ascii-output")
 	color, _ := cmd.Flags().GetBool("color-output")
-	sortKeys, _ := cmd.Flags().GetBool("sort-keys")
-	compact, _ := cmd.Flags().GetBool("compact")
-	tab, _ := cmd.Flags().GetBool("tab")
+	//compact, _ := cmd.Flags().GetBool("compact")
 	monochrome, _ := cmd.Flags().GetBool("monochrome-output")
-	maintainFormat, _ := cmd.Flags().GetBool("maintain-format")
 	if runtime.GOOS == "windows" {
 		monochrome = true
 	}
@@ -98,31 +94,6 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("not enough arguments provided")
 	}
 
-	var flags jq.JvPrintFlags
-	if sortKeys {
-		flags = flags | jq.JvPrintSorted
-	}
-	if ascii {
-		flags = flags | jq.JvPrintASCII
-	}
-	if stdoutIsTTY {
-		flags = flags | jq.JvPrintIsATty
-	}
-	if color {
-		flags = flags | jq.JvPrintColour
-	}
-	if monochrome {
-		flags = flags &^ jq.JvPrintColour
-	}
-	if !compact {
-		flags = flags | jq.JvPrintPretty
-	}
-	if tab {
-		flags = flags | jq.JvPrintTab
-	} else {
-		flags = flags | jq.JvPrintSpace1
-	}
-
 	for _, pathArg := range pathArgs {
 		libjq, err := jq.New()
 		if err != nil {
@@ -138,26 +109,26 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to read file at %s: `%s`", path, err)
 		}
 
-		formatName, err := cmd.Flags().GetString("format")
-		if err != nil {
-			panic("failed to find format flag")
+		// If there was no input, there's no output!
+		if len(fileBytes) == 0 {
+			continue
 		}
 
-		var enc formats.Encoding
+		var decoder formats.Encoding
 		var ok bool
-		if formatName == "auto" {
-			enc, ok = detectFormat(fileBytes, path)
+		if inputFormat == "auto" {
+			decoder, ok = detectFormat(fileBytes, path)
 			if !ok {
 				return errors.New("failed to detect format of the input")
 			}
 		} else {
-			enc, ok = formats.ByName[strings.ToLower(formatName)]
+			decoder, ok = formats.ByName[strings.ToLower(inputFormat)]
 			if !ok {
-				return fmt.Errorf("no supported format found named %s", formatName)
+				return fmt.Errorf("no supported format found named %s", inputFormat)
 			}
 		}
 
-		jsonifiedFile, err := enc.MarshalJSONBytes(fileBytes)
+		jsonifiedFile, err := decoder.MarshalJSONBytes(fileBytes)
 		if err != nil {
 			return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
 		}
@@ -179,20 +150,38 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to execute jq program for file at %s: %s", path, err)
 		}
 
+		// Determine the encoding for the file output.
+		var encoder formats.Encoding
+		if outputFormat == "auto" {
+			encoder = decoder
+		} else {
+			encoder, ok = formats.ByName[strings.ToLower(outputFormat)]
+			if !ok {
+				return fmt.Errorf("no supported format found named %s", outputFormat)
+			}
+		}
+
+		// Print the final output.
 		for _, resultJv := range resultJvs {
+			resultBytes := []byte(resultJv.Dump(jq.JvPrintNone))
+			output, err := encoder.UnmarshalJSONBytes(resultBytes)
+			if err != nil {
+				return fmt.Errorf("failed to encode jq program output as %s: %s", inputFormat, err)
+			}
+
 			if raw {
-				printRaw(resultJv, ascii, flags)
-			} else {
-				if maintainFormat {
-					output, err := enc.UnmarshalJSONBytes([]byte(resultJv.Dump(jq.JvPrintNone)))
-					if err != nil {
-						return fmt.Errorf("failed to encode jq program output as %s: %s", formatName, err)
-					}
-					fmt.Println(string(output))
-				} else {
-					fmt.Println(resultJv.Dump(flags))
+				output, err = encoder.Raw(output)
+				if err != nil {
+					return fmt.Errorf("failed to encode jq program output as raw %s: %s", inputFormat, err)
+				}
+			} else if color && !monochrome && stdoutIsTTY {
+				output, err = encoder.Color(output)
+				if err != nil {
+					return fmt.Errorf("failed to encode jq program output as color %s: %s", inputFormat, err)
 				}
 			}
+
+			fmt.Println(string(output))
 		}
 	}
 
@@ -218,18 +207,4 @@ func detectFormat(fileBytes []byte, path string) (formats.Encoding, bool) {
 	// Go isn't smart enough to do this in one line.
 	enc, ok := formats.ByName[format]
 	return enc, ok
-}
-
-func printRaw(resultJv *jq.Jv, ascii bool, flags jq.JvPrintFlags) {
-	if ascii && (resultJv.Kind() == jq.JvKindString) {
-		fmt.Println(resultJv.Dump(jq.JvPrintASCII))
-	} else if resultJv.Kind() == jq.JvKindString {
-		resultStr, err := resultJv.String()
-		if err != nil {
-			panic("failed to convert string jv into a Go string")
-		}
-		fmt.Println(resultStr)
-	} else {
-		fmt.Println(resultJv.Dump(flags))
-	}
 }
