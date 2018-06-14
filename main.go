@@ -109,6 +109,11 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to read file at %s: `%s`", path, err)
 		}
 
+		// If there was no input, there's no output!
+		if len(fileBytes) == 0 {
+			continue
+		}
+
 		var decoder formats.Encoding
 		var ok bool
 		if inputFormat == "auto" {
