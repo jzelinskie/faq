@@ -26,8 +26,9 @@ func (bencodeEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	return bencode.EncodeBytes(obj)
 }
 
-func (bencodeEncoding) Raw(bencodeBytes []byte) ([]byte, error)   { return bencodeBytes, nil }
-func (bencodeEncoding) Color(bencodeBytes []byte) ([]byte, error) { return bencodeBytes, nil }
+func (bencodeEncoding) Raw(bencodeBytes []byte) ([]byte, error)         { return bencodeBytes, nil }
+func (bencodeEncoding) PrettyPrint(bencodeBytes []byte) ([]byte, error) { return bencodeBytes, nil }
+func (bencodeEncoding) Color(bencodeBytes []byte) ([]byte, error)       { return bencodeBytes, nil }
 
 func init() {
 	ByName["bencode"] = bencodeEncoding{}

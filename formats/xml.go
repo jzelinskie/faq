@@ -26,6 +26,16 @@ func (xmlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 }
 
 func (xmlEncoding) Raw(xmlBytes []byte) ([]byte, error) { return xmlBytes, nil }
+
+func (xmlEncoding) PrettyPrint(xmlBytes []byte) ([]byte, error) {
+	xmap, err := mxj.NewMapXml(xmlBytes, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return xmap.XmlIndent("", "  ")
+}
+
 func (xmlEncoding) Color(xmlBytes []byte) ([]byte, error) {
 	var b bytes.Buffer
 	if err := quick.Highlight(&b, string(xmlBytes), "xml", ChromaFormatter(), ChromaStyle()); err != nil {

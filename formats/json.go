@@ -2,6 +2,7 @@ package formats
 
 import (
 	"bytes"
+	"encoding/json"
 
 	"github.com/alecthomas/chroma/quick"
 )
@@ -9,10 +10,12 @@ import (
 type jsonEncoding struct{}
 
 func (jsonEncoding) MarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
+	// It's already JSON, silly!
 	return jsonBytes, nil
 }
 
 func (jsonEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
+	// It's already JSON, silly!
 	return jsonBytes, nil
 }
 
@@ -23,6 +26,16 @@ func (jsonEncoding) Raw(jsonBytes []byte) ([]byte, error) {
 		return jsonBytes[1 : len(jsonBytes)-1], nil
 	}
 	return jsonBytes, nil
+}
+
+func (jsonEncoding) PrettyPrint(jsonBytes []byte) ([]byte, error) {
+	var i interface{}
+	err := json.Unmarshal(jsonBytes, &i)
+	if err != nil {
+		return nil, err
+	}
+
+	return json.MarshalIndent(i, "", "  ")
 }
 
 func (jsonEncoding) Color(jsonBytes []byte) ([]byte, error) {

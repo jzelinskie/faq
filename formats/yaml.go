@@ -17,7 +17,8 @@ func (yamlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	return yaml.JSONToYAML(jsonBytes)
 }
 
-func (yamlEncoding) Raw(yamlBytes []byte) ([]byte, error) { return yamlBytes, nil }
+func (yamlEncoding) Raw(yamlBytes []byte) ([]byte, error)         { return yamlBytes, nil }
+func (yamlEncoding) PrettyPrint(yamlBytes []byte) ([]byte, error) { return yamlBytes, nil }
 
 func (yamlEncoding) Color(yamlBytes []byte) ([]byte, error) {
 	var b bytes.Buffer

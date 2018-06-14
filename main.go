@@ -49,13 +49,12 @@ Supported formats:
 	}
 
 	rootCmd.Flags().Bool("debug", false, "enable debug logging")
-	rootCmd.Flags().StringP("format", "f", "auto", "input format")
+	rootCmd.Flags().StringP("input-format", "f", "auto", "input format")
 	rootCmd.Flags().StringP("output-format", "o", "auto", "output format")
-	rootCmd.Flags().BoolP("raw", "r", false, "output raw strings, not JSON texts")
-	rootCmd.Flags().BoolP("color-output", "C", true, "colorize the output")
-	rootCmd.Flags().BoolP("monochrome-output", "M", false, "monochrome (don't colorize the output)")
-	//rootCmd.Flags().BoolP("compact", "c", false, "compact instead of pretty-printed output")
-	rootCmd.Flags().BoolP("tab", "t", false, "use tabs for indentation")
+	rootCmd.Flags().BoolP("raw-output", "r", false, "output raw strings, not JSON texts")
+	rootCmd.Flags().BoolP("color-output", "c", true, "colorize the output")
+	rootCmd.Flags().BoolP("monochrome-output", "m", false, "monochrome (don't colorize the output)")
+	rootCmd.Flags().BoolP("pretty-output", "p", true, "pretty-printed output")
 
 	rootCmd.Flags().MarkHidden("debug")
 
@@ -63,11 +62,11 @@ Supported formats:
 }
 
 func runCmdFunc(cmd *cobra.Command, args []string) error {
-	inputFormat, _ := cmd.Flags().GetString("format")
+	inputFormat, _ := cmd.Flags().GetString("input-format")
 	outputFormat, _ := cmd.Flags().GetString("output-format")
-	raw, _ := cmd.Flags().GetBool("raw")
+	raw, _ := cmd.Flags().GetBool("raw-output")
 	color, _ := cmd.Flags().GetBool("color-output")
-	//compact, _ := cmd.Flags().GetBool("compact")
+	prettyPrint, _ := cmd.Flags().GetBool("pretty-output")
 	monochrome, _ := cmd.Flags().GetBool("monochrome-output")
 	if runtime.GOOS == "windows" {
 		monochrome = true
@@ -166,18 +165,25 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			resultBytes := []byte(resultJv.Dump(jq.JvPrintNone))
 			output, err := encoder.UnmarshalJSONBytes(resultBytes)
 			if err != nil {
-				return fmt.Errorf("failed to encode jq program output as %s: %s", inputFormat, err)
+				return fmt.Errorf("failed to encode jq program output as %s: %s", outputFormat, err)
+			}
+
+			if prettyPrint {
+				output, err = encoder.PrettyPrint(output)
+				if err != nil {
+					return fmt.Errorf("failed to encode jq program output as pretty %s: %s", outputFormat, err)
+				}
 			}
 
 			if raw {
 				output, err = encoder.Raw(output)
 				if err != nil {
-					return fmt.Errorf("failed to encode jq program output as raw %s: %s", inputFormat, err)
+					return fmt.Errorf("failed to encode jq program output as raw %s: %s", outputFormat, err)
 				}
 			} else if color && !monochrome && stdoutIsTTY {
 				output, err = encoder.Color(output)
 				if err != nil {
-					return fmt.Errorf("failed to encode jq program output as color %s: %s", inputFormat, err)
+					return fmt.Errorf("failed to encode jq program output as color %s: %s", outputFormat, err)
 				}
 			}
 

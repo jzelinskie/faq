@@ -5,6 +5,7 @@ type Encoding interface {
 	MarshalJSONBytes([]byte) ([]byte, error)
 	UnmarshalJSONBytes([]byte) ([]byte, error)
 	Raw([]byte) ([]byte, error)
+	PrettyPrint([]byte) ([]byte, error)
 	Color([]byte) ([]byte, error)
 }
 
