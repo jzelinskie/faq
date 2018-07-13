@@ -33,7 +33,7 @@ Behavior such as command-line flags may change causing shell scripts using faq t
 ### Linux
 
 ```sh
-curl -Lo /usr/local/bin/faq https://github.com/jzelinskie/faq/releases/download/0.0.1/faq-linux-amd64
+curl -Lo /usr/local/bin/faq https://github.com/jzelinskie/faq/releases/download/0.0.2/faq-linux-amd64
 chmod +x /usr/local/bin/faq
 ```
 
