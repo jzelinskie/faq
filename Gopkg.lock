@@ -9,8 +9,8 @@
     "pkg/linguist/tokenizer",
     "pkg/osutil"
   ]
-  revision = "fdc29c553a45600ac4f795f3485d4bb9a80c7862"
-  version = "v0.14.1"
+  revision = "9d73889a1318a435d126bc5df846610d30cfbe7f"
+  version = "v0.15.0"
 
 [[projects]]
   name = "github.com/BurntSushi/toml"
@@ -19,16 +19,63 @@
   version = "v0.3.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/cheekybits/is"
+  name = "github.com/alecthomas/chroma"
+  packages = [
+    ".",
+    "formatters",
+    "formatters/html",
+    "lexers",
+    "lexers/a",
+    "lexers/b",
+    "lexers/c",
+    "lexers/d",
+    "lexers/e",
+    "lexers/f",
+    "lexers/g",
+    "lexers/h",
+    "lexers/i",
+    "lexers/internal",
+    "lexers/j",
+    "lexers/k",
+    "lexers/l",
+    "lexers/m",
+    "lexers/n",
+    "lexers/o",
+    "lexers/p",
+    "lexers/q",
+    "lexers/r",
+    "lexers/s",
+    "lexers/t",
+    "lexers/v",
+    "lexers/w",
+    "lexers/x",
+    "lexers/y",
+    "quick",
+    "styles"
+  ]
+  revision = "3020e2ea8c6b1a9c2336022d847c4392c3997f02"
+  version = "v0.4.0"
+
+[[projects]]
+  name = "github.com/clbanning/mxj"
   packages = ["."]
-  revision = "68e9c0620927fb5427fda3708222d0edee89eae9"
+  revision = "1f00e0bf9bacd7ea9c93d27594d1d1f5a41bac36"
+  version = "v1.8"
 
 [[projects]]
   branch = "master"
-  name = "github.com/clbanning/mxj"
+  name = "github.com/danwakefield/fnmatch"
   packages = ["."]
-  revision = "32282164326064599d3a83e53adcb9b318d78d90"
+  revision = "cbb64ac3d964b81592e64f957ad53df015803288"
+
+[[projects]]
+  name = "github.com/dlclark/regexp2"
+  packages = [
+    ".",
+    "syntax"
+  ]
+  revision = "487489b64fb796de2e55f4e8a4ad1e145f80e957"
+  version = "v1.1.6"
 
 [[projects]]
   name = "github.com/ghodss/yaml"
@@ -43,7 +90,7 @@
     "bson",
     "internal/json"
   ]
-  revision = "efe0945164a7e582241f37ae8983c075f8f2e870"
+  revision = "113d3961e7311526535a1ef7042196563d442761"
 
 [[projects]]
   name = "github.com/inconshreveable/mousetrap"
@@ -85,7 +132,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "1a580b3eff7814fc9b40602fd35256c63b50f491"
+  revision = "a49355c7e3f8fe157a85be2f77e6e269a0f89602"
 
 [[projects]]
   branch = "master"
@@ -94,7 +141,7 @@
     "unix",
     "windows"
   ]
-  revision = "7c87d13f8e835d2fb3a70a2912c811ed0c1d241b"
+  revision = "ac767d655b305d4e9612f5f6e33120b9176c4ad4"
 
 [[projects]]
   name = "gopkg.in/yaml.v2"
@@ -105,6 +152,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b1084b8e2a0b6ce235e4c86ed42da00bfdbbba95c3588df12816b5681515479a"
+  inputs-digest = "e0018638b2cd7fb4dc4c9879fe4dd5b49420c956c4fe9b897a738026df65457e"
   solver-name = "gps-cdcl"
   solver-version = 1
