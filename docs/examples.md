@@ -7,16 +7,13 @@ Usage:
   faq [flags] [filter string] [files...]
 
 Flags:
-  -a, --ascii-output        force output to be ascii instead of UTF-8
-  -C, --color-output        colorize the output (default true)
-  -c, --compact             compact instead of pretty-printed output
-  -f, --format string       input format (default "auto")
-  -h, --help                help for faq
-  -m, --maintain-format     maintain original format (don't output JSON)
-  -M, --monochrome-output   monochrome (don't colorize the output)
-  -r, --raw                 output raw strings, not JSON texts
-  -S, --sort-keys           sort keys of objects on output
-  -t, --tab                 use tabs for indentation
+  -c, --color-output           colorize the output (default true)
+  -h, --help                   help for faq
+  -f, --input-format string    input format (default "auto")
+  -m, --monochrome-output      monochrome (don't colorize the output)
+  -o, --output-format string   output format (default "auto")
+  -p, --pretty-output          pretty-printed output (default true)
+  -r, --raw-output             output raw strings, not JSON texts
 ```
 
 ## Command-line fu
