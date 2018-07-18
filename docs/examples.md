@@ -1,6 +1,4 @@
-# Examples
-
-## Usage
+# Usage
 
 ```
 Usage:
@@ -16,15 +14,18 @@ Flags:
   -r, --raw-output             output raw strings, not JSON texts
 ```
 
-## Command-line fu
+# Examples
 
+Note: Example files can be found in the /docs/examples/ directory
 
-### Piping to make something legible
+## Piping to make something legible
 
+Input
 ```sh
-echo '{"hello":{"world":"whats up"},"with":"you"}' | faq
+cat docs/examples/unformatted.json | faq
 ```
 
+Output
 ```json
 {
   "hello": {
@@ -32,16 +33,18 @@ echo '{"hello":{"world":"whats up"},"with":"you"}' | faq
   },
   "with": "you"
 }
-
 ```
 
-### Reading a raw string value from a YAML file
+## Reading a raw string value from a YAML file
 
+Input
 ```sh
-faq -r '.apiVersion' etcdcluster.yaml
+faq -r '.company' docs/examples/sample.yaml
 ```
+
+Output
 ```
-etcd.database.coreos.com/v1beta2
+Awesome Code inc.
 ```
 
 ### Get the name of all of the dependencies of a Go project
