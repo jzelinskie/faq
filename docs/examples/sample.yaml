@@ -1,0 +1,19 @@
+---
+name: Employee records
+company: Awesome Code inc.
+
+employees:
+- username: martin
+  name: Martin D'vloper
+  job: Developer
+  skills:
+    - python
+    - perl
+    - pascal
+- username: tabitha
+  name: Tabitha Bitumen
+  job: Developer
+  skills:
+    - lisp
+    - fortran
+    - erlang

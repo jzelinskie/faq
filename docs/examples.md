@@ -1,33 +1,31 @@
-# Examples
-
-## Usage
+# Usage
 
 ```
 Usage:
   faq [flags] [filter string] [files...]
 
 Flags:
-  -a, --ascii-output        force output to be ascii instead of UTF-8
-  -C, --color-output        colorize the output (default true)
-  -c, --compact             compact instead of pretty-printed output
-  -f, --format string       input format (default "auto")
-  -h, --help                help for faq
-  -m, --maintain-format     maintain original format (don't output JSON)
-  -M, --monochrome-output   monochrome (don't colorize the output)
-  -r, --raw                 output raw strings, not JSON texts
-  -S, --sort-keys           sort keys of objects on output
-  -t, --tab                 use tabs for indentation
+  -c, --color-output           colorize the output (default true)
+  -h, --help                   help for faq
+  -f, --input-format string    input format (default "auto")
+  -m, --monochrome-output      monochrome (don't colorize the output)
+  -o, --output-format string   output format (default "auto")
+  -p, --pretty-output          pretty-printed output (default true)
+  -r, --raw-output             output raw strings, not JSON texts
 ```
 
-## Command-line fu
+# Examples
 
+Note: Example files can be found in the /docs/examples/ directory
 
-### Piping to make something legible
+## Piping to make something legible
 
+Input
 ```sh
-echo '{"hello":{"world":"whats up"},"with":"you"}' | faq
+cat docs/examples/unformatted.json | faq
 ```
 
+Output
 ```json
 {
   "hello": {
@@ -35,56 +33,16 @@ echo '{"hello":{"world":"whats up"},"with":"you"}' | faq
   },
   "with": "you"
 }
-
 ```
 
-### Reading a raw string value from a YAML file
+## Reading a raw string value from a YAML file
 
+Input
 ```sh
-faq -r '.apiVersion' etcdcluster.yaml
-```
-```
-etcd.database.coreos.com/v1beta2
+faq -r '.company' docs/examples/sample.yaml
 ```
 
-### Get the name of all of the dependencies of a Go project
-
-```sh
-faq -r '.constraint[].name' Gopkg.toml
+Output
 ```
-
-```
-github.com/Azure/draft
-github.com/BurntSushi/toml
-github.com/ashb/jqrepl
-github.com/clbanning/mxj
-github.com/ghodss/yaml
-github.com/globalsign/mgo
-github.com/sirupsen/logrus
-github.com/spf13/cobra
-github.com/zeebo/bencode
-golang.org/x/crypto
-```
-
-### Viewing the non-binary parts of a torrent file
-
-```sh
-curl --silent -L https://cdimage.debian.org/debian-cd/current/amd64/bt-cd/debian-9.4.0-amd64-netinst.iso.torrent | faq -f bencode 'del(.info.pieces)'
-```
-
-```json
-{
-  "announce": "http://bttracker.debian.org:6969/announce",
-  "comment": "\"Debian CD from cdimage.debian.org\"",
-  "creation date": 1520682848,
-  "httpseeds": [
-    "https://cdimage.debian.org/cdimage/release/9.4.0//srv/cdbuilder.debian.org/dst/deb-cd/weekly-builds/amd64/iso-cd/debian-9.4.0-amd64-netinst.iso",
-    "https://cdimage.debian.org/cdimage/archive/9.4.0//srv/cdbuilder.debian.org/dst/deb-cd/weekly-builds/amd64/iso-cd/debian-9.4.0-amd64-netinst.iso"
-  ],
-  "info": {
-    "length": 305135616,
-    "name": "debian-9.4.0-amd64-netinst.iso",
-    "piece length": 262144
-  }
-}
+Awesome Code inc.
 ```
