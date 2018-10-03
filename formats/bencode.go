@@ -1,6 +1,7 @@
 package formats
 
 import (
+	"bytes"
 	"encoding/json"
 
 	"github.com/zeebo/bencode"
@@ -18,8 +19,11 @@ func (bencodeEncoding) MarshalJSONBytes(bencodedBytes []byte) ([]byte, error) {
 }
 
 func (bencodeEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
+	decoder := json.NewDecoder(bytes.NewBuffer(jsonBytes))
+	decoder.UseNumber()
+
 	var obj interface{}
-	err := json.Unmarshal(jsonBytes, &obj)
+	err := decoder.Decode(&obj)
 	if err != nil {
 		return nil, err
 	}
