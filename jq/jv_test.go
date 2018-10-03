@@ -126,7 +126,7 @@ func TestJvFromInterface(t *testing.T) {
 		t.Errorf("JvFromInterface() with nil failed to parse: %s", err)
 	}
 	if jv == nil {
-		t.Errorf("JvFromInterface() with nil suceeded, but returned nil")
+		t.Errorf("JvFromInterface() with nil succeeded, but returned nil")
 	}
 	if jv.Kind() != jq.JvKindNull {
 		t.Errorf("JvFromInterface() with nil did not parse into a JvKindNull")
@@ -138,7 +138,7 @@ func TestJvFromInterface(t *testing.T) {
 		t.Errorf("JvFromInterface() with true failed to parse: %s", err)
 	}
 	if jv == nil {
-		t.Errorf("JvFromInterface() with true suceeded, but returned nil")
+		t.Errorf("JvFromInterface() with true succeeded, but returned nil")
 	}
 	if jv.Kind() != jq.JvKindTrue {
 		t.Errorf("JvFromInterface() with true did not parse into a JvKindTrue")
@@ -150,7 +150,7 @@ func TestJvFromInterface(t *testing.T) {
 		t.Errorf("JvFromInterface() with false failed to parse: %s", err)
 	}
 	if jv == nil {
-		t.Errorf("JvFromInterface() with false suceeded, but returned nil")
+		t.Errorf("JvFromInterface() with false succeeded, but returned nil")
 	}
 	if jv.Kind() != jq.JvKindFalse {
 		t.Errorf("JvFromInterface() with false did not parse into a JvKindFalse")
@@ -162,7 +162,7 @@ func TestJvFromInterface(t *testing.T) {
 		t.Errorf("JvFromInterface() with a float failed to parse: %s", err)
 	}
 	if jv == nil {
-		t.Errorf("JvFromInterface() with a float suceeded, but returned nil")
+		t.Errorf("JvFromInterface() with a float succeeded, but returned nil")
 	}
 	if jv.Kind() != jq.JvKindNumber {
 		t.Errorf("JvFromInterface() with a float did not parse into a JvKindNumber")
@@ -182,7 +182,7 @@ func TestJvFromInterface(t *testing.T) {
 		t.Errorf("JvFromInterface() with an integer failed to parse: %s", err)
 	}
 	if jv == nil {
-		t.Errorf("JvFromInterface() with an integer suceeded, but returned nil")
+		t.Errorf("JvFromInterface() with an integer succeeded, but returned nil")
 	}
 	if jv.Kind() != jq.JvKindNumber {
 		t.Errorf("JvFromInterface() with an integer did not parse into a JvKindNumber")
@@ -202,7 +202,7 @@ func TestJvFromInterface(t *testing.T) {
 		t.Errorf("JvFromInterface() with a string failed to parse: %s", err)
 	}
 	if jv == nil {
-		t.Errorf("JvFromInterface() with a string suceeded, but returned nil")
+		t.Errorf("JvFromInterface() with a string succeeded, but returned nil")
 	}
 	if jv.Kind() != jq.JvKindString {
 		t.Errorf("JvFromInterface() with a string did not parse into a JvKindString")
@@ -221,7 +221,7 @@ func TestJvFromInterface(t *testing.T) {
 		t.Errorf("JvFromInterface() with an array failed to parse: %s", err)
 	}
 	if jv == nil {
-		t.Errorf("JvFromInterface() with an array suceeded, but returned nil")
+		t.Errorf("JvFromInterface() with an array succeeded, but returned nil")
 	}
 	if jv.Kind() != jq.JvKindArray {
 		t.Errorf("JvFromInterface() with an array did not parse into a JvKindArray")
@@ -236,7 +236,7 @@ func TestJvFromInterface(t *testing.T) {
 		t.Errorf("JvFromInterface() with a map failed to parse: %s", err)
 	}
 	if jv == nil {
-		t.Errorf("JvFromInterface() with a map suceeded, but returned nil")
+		t.Errorf("JvFromInterface() with a map succeeded, but returned nil")
 	}
 	if jv.Kind() != jq.JvKindObject {
 		t.Errorf("JvFromInterface() with a map did not parse into a JvKindObject")

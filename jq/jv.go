@@ -104,7 +104,7 @@ func (kind JvKind) String() string {
 	case JvKindObject:
 		return "object"
 	default:
-		return "<unkown>"
+		return "<unknown>"
 	}
 }
 
@@ -291,7 +291,7 @@ func (jv *Jv) Kind() JvKind {
 // Does not consume the invocant.
 func (jv *Jv) Copy() *Jv {
 	C.jv_copy(jv.jv)
-	// Becasue jv uses ref counting under the hood we can return the same value
+	// Because jv uses ref counting under the hood we can return the same value
 	return jv
 }
 
