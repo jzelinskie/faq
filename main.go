@@ -95,6 +95,9 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("not enough arguments provided")
 		}
 	} else {
+		if len(args) < 2 {
+			return fmt.Errorf("not enough arguments provided")
+		}
 		program = args[0]
 		pathArgs = args[1:]
 	}
