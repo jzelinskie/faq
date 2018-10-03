@@ -67,7 +67,7 @@ golang.org/x/crypto
 ### Viewing the non-binary parts of a torrent file
 
 ```sh
-curl --silent -L https://torrent.fedoraproject.org/torrents/Fedora-Workstation-Live-x86_64-28.torrent | faq -f bencode -o yaml 'del(.info.pieces)'
+curl -s https://torrent.fedoraproject.org/torrents/Fedora-Workstation-Live-x86_64-28.torrent | faq -f bencode -o yaml 'del(.info.pieces)'
 ```
 
 ```yaml
