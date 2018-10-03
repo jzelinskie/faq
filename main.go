@@ -58,15 +58,25 @@ Supported formats:
 	rootCmd.Execute()
 }
 
+type flags struct {
+	inputFormat  string
+	outputFormat string
+	raw          bool
+	color        bool
+	monochrome   bool
+	pretty       bool
+}
+
 func runCmdFunc(cmd *cobra.Command, args []string) error {
-	inputFormat, _ := cmd.Flags().GetString("input-format")
-	outputFormat, _ := cmd.Flags().GetString("output-format")
-	raw, _ := cmd.Flags().GetBool("raw-output")
-	color, _ := cmd.Flags().GetBool("color-output")
-	prettyPrint, _ := cmd.Flags().GetBool("pretty-output")
-	monochrome, _ := cmd.Flags().GetBool("monochrome-output")
+	var flags flags
+	flags.inputFormat, _ = cmd.Flags().GetString("input-format")
+	flags.outputFormat, _ = cmd.Flags().GetString("output-format")
+	flags.raw, _ = cmd.Flags().GetBool("raw-output")
+	flags.color, _ = cmd.Flags().GetBool("color-output")
+	flags.pretty, _ = cmd.Flags().GetBool("pretty-output")
+	flags.monochrome, _ = cmd.Flags().GetBool("monochrome-output")
 	if runtime.GOOS == "windows" {
-		monochrome = true
+		flags.monochrome = true
 	}
 
 	// Check to see execution is in an interactive terminal and set the args
@@ -76,7 +86,7 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 
 	// If stdout isn't an interactive tty, then default to monochrome.
 	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
-		monochrome = true
+		flags.monochrome = true
 	}
 
 	// Determine the jq program and arguments if a unix being used or not.
@@ -102,102 +112,110 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		pathArgs = args[1:]
 	}
 
+	// Handle each file path provided.
 	for _, pathArg := range pathArgs {
-		libjq, err := jq.New()
+		err := processPathArg(pathArg, program, flags)
 		if err != nil {
-			return fmt.Errorf("failed to initialize libjq: %s", err)
+			return err
 		}
+	}
 
-		// Sucks these won't close until runCmdFunc exits.
-		defer libjq.Close()
+	return nil
+}
 
-		path := os.ExpandEnv(pathArg)
-		fileBytes, err := ioutil.ReadFile(path)
+func processPathArg(pathArg, program string, flags flags) error {
+	libjq, err := jq.New()
+	if err != nil {
+		return fmt.Errorf("failed to initialize libjq: %s", err)
+	}
+	defer libjq.Close()
+
+	path := os.ExpandEnv(pathArg)
+	fileBytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read file at %s: `%s`", path, err)
+	}
+
+	// If there was no input, there's no output!
+	if len(fileBytes) == 0 {
+		return nil
+	}
+
+	var decoder formats.Encoding
+	var ok bool
+	if flags.inputFormat == "auto" {
+		decoder, ok = detectFormat(fileBytes, path)
+		if !ok {
+			return errors.New("failed to detect format of the input")
+		}
+	} else {
+		decoder, ok = formats.ByName[strings.ToLower(flags.inputFormat)]
+		if !ok {
+			return fmt.Errorf("no supported format found named %s", flags.inputFormat)
+		}
+	}
+
+	jsonifiedFile, err := decoder.MarshalJSONBytes(fileBytes)
+	if err != nil {
+		return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
+	}
+
+	fileJv, err := jq.JvFromJSONBytes(jsonifiedFile)
+	if err != nil {
+		panic("failed to convert jsonified file into jv")
+	}
+
+	errs := libjq.Compile(program, jq.JvArray())
+	for _, err := range errs {
 		if err != nil {
-			return fmt.Errorf("failed to read file at %s: `%s`", path, err)
+			return fmt.Errorf("failed to compile jq program for file at %s: %s", path, err)
 		}
+	}
 
-		// If there was no input, there's no output!
-		if len(fileBytes) == 0 {
-			continue
+	resultJvs, err := libjq.Execute(fileJv)
+	if err != nil {
+		return fmt.Errorf("failed to execute jq program for file at %s: %s", path, err)
+	}
+
+	// Determine the encoding for the file output.
+	var encoder formats.Encoding
+	if flags.outputFormat == "auto" {
+		encoder = decoder
+	} else {
+		encoder, ok = formats.ByName[strings.ToLower(flags.outputFormat)]
+		if !ok {
+			return fmt.Errorf("no supported format found named %s", flags.outputFormat)
 		}
+	}
 
-		var decoder formats.Encoding
-		var ok bool
-		if inputFormat == "auto" {
-			decoder, ok = detectFormat(fileBytes, path)
-			if !ok {
-				return errors.New("failed to detect format of the input")
-			}
-		} else {
-			decoder, ok = formats.ByName[strings.ToLower(inputFormat)]
-			if !ok {
-				return fmt.Errorf("no supported format found named %s", inputFormat)
-			}
-		}
-
-		jsonifiedFile, err := decoder.MarshalJSONBytes(fileBytes)
+	// Print the final output.
+	for _, resultJv := range resultJvs {
+		resultBytes := []byte(resultJv.Dump(jq.JvPrintNone))
+		output, err := encoder.UnmarshalJSONBytes(resultBytes)
 		if err != nil {
-			return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
+			return fmt.Errorf("failed to encode jq program output as %s: %s", flags.outputFormat, err)
 		}
 
-		fileJv, err := jq.JvFromJSONBytes(jsonifiedFile)
-		if err != nil {
-			panic("failed to convert jsonified file into jv")
-		}
-
-		errs := libjq.Compile(program, jq.JvArray())
-		for _, err := range errs {
+		if flags.pretty {
+			output, err = encoder.PrettyPrint(output)
 			if err != nil {
-				return fmt.Errorf("failed to compile jq program for file at %s: %s", path, err)
+				return fmt.Errorf("failed to encode jq program output as pretty %s: %s", flags.outputFormat, err)
 			}
 		}
 
-		resultJvs, err := libjq.Execute(fileJv)
-		if err != nil {
-			return fmt.Errorf("failed to execute jq program for file at %s: %s", path, err)
-		}
-
-		// Determine the encoding for the file output.
-		var encoder formats.Encoding
-		if outputFormat == "auto" {
-			encoder = decoder
-		} else {
-			encoder, ok = formats.ByName[strings.ToLower(outputFormat)]
-			if !ok {
-				return fmt.Errorf("no supported format found named %s", outputFormat)
-			}
-		}
-
-		// Print the final output.
-		for _, resultJv := range resultJvs {
-			resultBytes := []byte(resultJv.Dump(jq.JvPrintNone))
-			output, err := encoder.UnmarshalJSONBytes(resultBytes)
+		if flags.raw {
+			output, err = encoder.Raw(output)
 			if err != nil {
-				return fmt.Errorf("failed to encode jq program output as %s: %s", outputFormat, err)
+				return fmt.Errorf("failed to encode jq program output as raw %s: %s", flags.outputFormat, err)
 			}
-
-			if prettyPrint {
-				output, err = encoder.PrettyPrint(output)
-				if err != nil {
-					return fmt.Errorf("failed to encode jq program output as pretty %s: %s", outputFormat, err)
-				}
+		} else if flags.color && !flags.monochrome {
+			output, err = encoder.Color(output)
+			if err != nil {
+				return fmt.Errorf("failed to encode jq program output as color %s: %s", flags.outputFormat, err)
 			}
-
-			if raw {
-				output, err = encoder.Raw(output)
-				if err != nil {
-					return fmt.Errorf("failed to encode jq program output as raw %s: %s", outputFormat, err)
-				}
-			} else if color && !monochrome {
-				output, err = encoder.Color(output)
-				if err != nil {
-					return fmt.Errorf("failed to encode jq program output as color %s: %s", outputFormat, err)
-				}
-			}
-
-			fmt.Println(string(output))
 		}
+
+		fmt.Println(string(output))
 	}
 
 	return nil
