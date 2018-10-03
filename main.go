@@ -71,23 +71,32 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 
 	// Check to see execution is in an interactive terminal and set the args
 	// and flags as such.
-	stdoutIsTTY := terminal.IsTerminal(int(os.Stdout.Fd()))
-	stdinIsTTY := terminal.IsTerminal(int(os.Stdin.Fd()))
 	program := ""
 	pathArgs := []string{}
-	if !stdinIsTTY && len(args) == 0 {
-		program = "."
-		pathArgs = []string{"/dev/stdin"}
+
+	// If stdout isn't an interactive tty, then default to monochrome.
+	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
 		monochrome = true
-	} else if !stdinIsTTY && len(args) == 1 {
-		program = args[0]
-		pathArgs = []string{"/dev/stdin"}
-		monochrome = true
-	} else if len(args) >= 2 {
+	}
+
+	// Determine the jq program and arguments if a unix being used or not.
+	if !terminal.IsTerminal(int(os.Stdin.Fd())) {
+		switch {
+		case len(args) == 0:
+			program = "."
+			pathArgs = []string{"/dev/stdin"}
+		case len(args) == 1:
+			program = args[0]
+			pathArgs = []string{"/dev/stdin"}
+		case len(args) > 1:
+			program = args[0]
+			pathArgs = args[1:]
+		default:
+			return fmt.Errorf("not enough arguments provided")
+		}
+	} else {
 		program = args[0]
 		pathArgs = args[1:]
-	} else {
-		return fmt.Errorf("not enough arguments provided")
 	}
 
 	for _, pathArg := range pathArgs {
@@ -177,7 +186,7 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return fmt.Errorf("failed to encode jq program output as raw %s: %s", outputFormat, err)
 				}
-			} else if color && !monochrome && stdoutIsTTY {
+			} else if color && !monochrome {
 				output, err = encoder.Color(output)
 				if err != nil {
 					return fmt.Errorf("failed to encode jq program output as color %s: %s", outputFormat, err)
