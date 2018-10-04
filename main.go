@@ -124,12 +124,6 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 }
 
 func processPathArg(pathArg, program string, flags flags) error {
-	libjq, err := jq.New()
-	if err != nil {
-		return fmt.Errorf("failed to initialize libjq: %s", err)
-	}
-	defer libjq.Close()
-
 	path := os.ExpandEnv(pathArg)
 	fileBytes, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -141,18 +135,14 @@ func processPathArg(pathArg, program string, flags flags) error {
 		return nil
 	}
 
-	var decoder formats.Encoding
-	var ok bool
-	if flags.inputFormat == "auto" {
-		decoder, ok = detectFormat(fileBytes, path)
-		if !ok {
-			return errors.New("failed to detect format of the input")
-		}
-	} else {
-		decoder, ok = formats.ByName[strings.ToLower(flags.inputFormat)]
-		if !ok {
-			return fmt.Errorf("no supported format found named %s", flags.inputFormat)
-		}
+	decoder, err := determineDecoder(flags.inputFormat, path, fileBytes)
+	if err != nil {
+		return err
+	}
+
+	encoder, err := determineEncoder(flags.outputFormat, decoder)
+	if err != nil {
+		return err
 	}
 
 	jsonifiedFile, err := decoder.MarshalJSONBytes(fileBytes)
@@ -160,7 +150,59 @@ func processPathArg(pathArg, program string, flags flags) error {
 		return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
 	}
 
-	fileJv, err := jq.JvFromJSONBytes(jsonifiedFile)
+	resultJvs, err := execJQProgram(program, path, jsonifiedFile)
+	if err != nil {
+		return err
+	}
+
+	for _, resultJv := range resultJvs {
+		err := printJV(resultJv, encoder, decoder, flags)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func printJV(jv *jq.Jv, encoder, decoder formats.Encoding, flags flags) error {
+	resultBytes := []byte(jv.Dump(jq.JvPrintNone))
+	output, err := encoder.UnmarshalJSONBytes(resultBytes)
+	if err != nil {
+		return fmt.Errorf("failed to encode jq program output as %s: %s", flags.outputFormat, err)
+	}
+
+	if flags.pretty {
+		output, err = encoder.PrettyPrint(output)
+		if err != nil {
+			return fmt.Errorf("failed to encode jq program output as pretty %s: %s", flags.outputFormat, err)
+		}
+	}
+
+	if flags.raw {
+		output, err = encoder.Raw(output)
+		if err != nil {
+			return fmt.Errorf("failed to encode jq program output as raw %s: %s", flags.outputFormat, err)
+		}
+	} else if flags.color && !flags.monochrome {
+		output, err = encoder.Color(output)
+		if err != nil {
+			return fmt.Errorf("failed to encode jq program output as color %s: %s", flags.outputFormat, err)
+		}
+	}
+
+	fmt.Println(string(output))
+	return nil
+}
+
+func execJQProgram(program, path string, jsonBytes []byte) ([]*jq.Jv, error) {
+	libjq, err := jq.New()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize libjq: %s", err)
+	}
+	defer libjq.Close()
+
+	fileJv, err := jq.JvFromJSONBytes(jsonBytes)
 	if err != nil {
 		panic("failed to convert jsonified file into jv")
 	}
@@ -168,57 +210,49 @@ func processPathArg(pathArg, program string, flags flags) error {
 	errs := libjq.Compile(program, jq.JvArray())
 	for _, err := range errs {
 		if err != nil {
-			return fmt.Errorf("failed to compile jq program for file at %s: %s", path, err)
+			return nil, fmt.Errorf("failed to compile jq program for file at %s: %s", path, err)
 		}
 	}
 
 	resultJvs, err := libjq.Execute(fileJv)
 	if err != nil {
-		return fmt.Errorf("failed to execute jq program for file at %s: %s", path, err)
+		return nil, fmt.Errorf("failed to execute jq program for file at %s: %s", path, err)
 	}
 
-	// Determine the encoding for the file output.
+	return resultJvs, nil
+}
+
+func determineDecoder(inputFormat, path string, fileBytes []byte) (formats.Encoding, error) {
+	var decoder formats.Encoding
+	var ok bool
+	if inputFormat == "auto" {
+		decoder, ok = detectFormat(fileBytes, path)
+		if !ok {
+			return nil, errors.New("failed to detect format of the input")
+		}
+	} else {
+		decoder, ok = formats.ByName[strings.ToLower(inputFormat)]
+		if !ok {
+			return nil, fmt.Errorf("no supported format found named %s", inputFormat)
+		}
+	}
+
+	return decoder, nil
+}
+
+func determineEncoder(outputFormat string, decoder formats.Encoding) (formats.Encoding, error) {
 	var encoder formats.Encoding
-	if flags.outputFormat == "auto" {
+	var ok bool
+	if outputFormat == "auto" {
 		encoder = decoder
 	} else {
-		encoder, ok = formats.ByName[strings.ToLower(flags.outputFormat)]
+		encoder, ok = formats.ByName[strings.ToLower(outputFormat)]
 		if !ok {
-			return fmt.Errorf("no supported format found named %s", flags.outputFormat)
+			return nil, fmt.Errorf("no supported format found named %s", outputFormat)
 		}
 	}
 
-	// Print the final output.
-	for _, resultJv := range resultJvs {
-		resultBytes := []byte(resultJv.Dump(jq.JvPrintNone))
-		output, err := encoder.UnmarshalJSONBytes(resultBytes)
-		if err != nil {
-			return fmt.Errorf("failed to encode jq program output as %s: %s", flags.outputFormat, err)
-		}
-
-		if flags.pretty {
-			output, err = encoder.PrettyPrint(output)
-			if err != nil {
-				return fmt.Errorf("failed to encode jq program output as pretty %s: %s", flags.outputFormat, err)
-			}
-		}
-
-		if flags.raw {
-			output, err = encoder.Raw(output)
-			if err != nil {
-				return fmt.Errorf("failed to encode jq program output as raw %s: %s", flags.outputFormat, err)
-			}
-		} else if flags.color && !flags.monochrome {
-			output, err = encoder.Color(output)
-			if err != nil {
-				return fmt.Errorf("failed to encode jq program output as color %s: %s", flags.outputFormat, err)
-			}
-		}
-
-		fmt.Println(string(output))
-	}
-
-	return nil
+	return encoder, nil
 }
 
 func detectFormat(fileBytes []byte, path string) (formats.Encoding, bool) {
