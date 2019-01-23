@@ -162,19 +162,16 @@ func processFiles(paths []string, program string, flags flags) error {
 }
 
 // slurpFiles takes a list of files, and for each, attempts to convert it to
-// a JSON value and appends each JSON value  to an array, and passes that array
+// a JSON value and appends each JSON value to an array, and passes that array
 // as the input to the jq program.
 func slurpFiles(paths []string, program string, encoder formats.Encoding, flags flags) error {
-	// we panic on the errors because byte.Buffers generally do not return
+	// we ignore the errors because byte.Buffers generally do not return
 	// error on write, and instead only panic when they cannot grow the
 	// underlying slice.
 	var buf bytes.Buffer
 
 	// append the first array bracket
-	_, err := buf.WriteRune('[')
-	if err != nil {
-		panic(err)
-	}
+	buf.WriteRune('[')
 
 	// iterate over each file, appending it's contents to an array
 	for i, path := range paths {
@@ -184,31 +181,22 @@ func slurpFiles(paths []string, program string, encoder formats.Encoding, flags 
 		}
 		// only handle files with content
 		if len(bytes.TrimSpace(fileInfo.data)) != 0 {
-			_, err := buf.Write(fileInfo.data)
-			if err != nil {
-				panic(err)
-			}
+			buf.Write(fileInfo.data)
 			// append the comma if it isn't the last item in the array
 			if i != len(paths)-1 {
-				_, err = buf.WriteRune(',')
-				if err != nil {
-					panic(err)
-				}
+				buf.WriteRune(',')
 			}
 		}
 	}
 	// apend the last array bracket
-	_, err = buf.WriteRune(']')
-	if err != nil {
-		panic(err)
-	}
+	buf.WriteRune(']')
 
 	data := buf.Bytes()
 	if len(data) == 0 {
 		return nil
 	}
 
-	err = runJQ(program, data, encoder, flags)
+	err := runJQ(program, data, encoder, flags)
 	if err != nil {
 		return err
 	}
@@ -311,7 +299,6 @@ func execJQProgram(program string, jsonBytes []byte) ([]*jq.Jv, error) {
 	}
 
 	errs := libjq.Compile(program, jq.JvArray())
-	// errs := libjq.Compile(program, jq.JvArray())
 	for _, err := range errs {
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile jq program: %s", err)
