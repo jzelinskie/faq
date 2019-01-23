@@ -257,18 +257,15 @@ func (info *fileInfo) MarshalJSONBytes(decoder formats.Encoding) ([]byte, error)
 
 func (info *fileInfo) GetContents() ([]byte, error) {
 	if !info.read {
+		if readCloser, ok := info.reader.(io.ReadCloser); ok {
+			defer readCloser.Close()
+		}
 		var err error
 		info.data, err = ioutil.ReadAll(info.reader)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read file at %s: `%s`", info.path, err)
 		}
 
-		if readCloser, ok := info.reader.(io.ReadCloser); ok {
-			err = readCloser.Close()
-			if err != nil {
-				return nil, fmt.Errorf("failed to close file at %s: `%s`", info.path, err)
-			}
-		}
 		info.read = true
 	}
 	return info.data, nil
