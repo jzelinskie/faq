@@ -188,14 +188,10 @@ func slurpFiles(paths []string, program string, encoder formats.Encoding, flags 
 			}
 		}
 	}
-	// apend the last array bracket
+	// append the last array bracket
 	buf.WriteRune(']')
 
 	data := buf.Bytes()
-	if len(data) == 0 {
-		return nil
-	}
-
 	err := runJQ(program, data, encoder, flags)
 	if err != nil {
 		return err
