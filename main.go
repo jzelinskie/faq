@@ -119,7 +119,7 @@ func runFaq(args []string, flags flags) error {
 	// verify all files exist, and open them:
 	var fileInfos []*fileInfo
 	for _, path := range paths {
-		fileInfo, err := readFile(path, flags)
+		fileInfo, err := openFile(path, flags)
 		if err != nil {
 			return err
 		}
@@ -271,7 +271,7 @@ func (info *fileInfo) GetContents() ([]byte, error) {
 	return info.data, nil
 }
 
-func readFile(path string, flags flags) (*fileInfo, error) {
+func openFile(path string, flags flags) (*fileInfo, error) {
 	path = os.ExpandEnv(path)
 	file, err := os.Open(path)
 	if err != nil {
