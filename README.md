@@ -11,8 +11,6 @@
 faq is a tool intended to be a drop in replacement for "jq", but supports additional formats.
 The additional formats are converted into JSON and processed with libjq.
 
-faq is pronounced "fah queue".
-
 Supported formats:
 - BSON
 - Bencode
@@ -20,6 +18,11 @@ Supported formats:
 - TOML
 - XML
 - YAML
+
+$FAQ_FORMATTER can be set to terminal, terminal16m, json, tokens, html.
+$FAQ_STYLE can be set to any of the following themes: https://xyproto.github.io/splash/docs/
+
+How do you pronounce "faq"? Fuck you.
 
 For example usage, read [the examples doc].
 
