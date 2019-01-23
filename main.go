@@ -93,11 +93,6 @@ func runFaq(args []string, flags flags) error {
 	program := ""
 	paths := []string{}
 
-	// If stdout isn't an interactive tty, then default to monochrome.
-	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
-		flags.monochrome = true
-	}
-
 	// Determine the jq program and arguments if a unix being used or not.
 	if !terminal.IsTerminal(int(os.Stdin.Fd())) {
 		switch {
@@ -131,6 +126,15 @@ func runFaq(args []string, flags flags) error {
 		fileInfos = append(fileInfos, fileInfo)
 	}
 
+	return runFaq2(os.Stdout, fileInfos, program, flags)
+}
+
+func runFaq2(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags flags) error {
+	// If stdout isn't an interactive tty, then default to monochrome.
+	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
+		flags.monochrome = true
+	}
+
 	// Handle each file path provided.
 	if flags.slurp {
 		if flags.outputFormat == "" {
@@ -140,12 +144,12 @@ func runFaq(args []string, flags flags) error {
 		if !ok {
 			return fmt.Errorf("invalid --output-format %s", flags.outputFormat)
 		}
-		err := slurpFiles(fileInfos, program, encoder, flags)
+		err := slurpFiles(outputWriter, fileInfos, program, encoder, flags)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := processFiles(fileInfos, program, flags)
+		err := processFiles(outputWriter, fileInfos, program, flags)
 		if err != nil {
 			return err
 		}
@@ -156,7 +160,7 @@ func runFaq(args []string, flags flags) error {
 
 // processFiles takes a list of files, and for each, attempts to convert it
 // to a JSON value and runs the jq program it
-func processFiles(fileInfos []*fileInfo, program string, flags flags) error {
+func processFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags flags) error {
 	for _, fileInfo := range fileInfos {
 		decoder, err := determineDecoder(flags.inputFormat, fileInfo)
 		if err != nil {
@@ -170,7 +174,7 @@ func processFiles(fileInfos []*fileInfo, program string, flags flags) error {
 		if err != nil {
 			return err
 		}
-		err = runJQ(program, data, encoder, flags)
+		err = runJQ(outputWriter, program, data, encoder, flags)
 		if err != nil {
 			return err
 		}
@@ -179,10 +183,7 @@ func processFiles(fileInfos []*fileInfo, program string, flags flags) error {
 	return nil
 }
 
-// slurpFiles takes a list of files, and for each, attempts to convert it to
-// a JSON value and appends each JSON value to an array, and passes that array
-// as the input to the jq program.
-func slurpFiles(fileInfos []*fileInfo, program string, encoder formats.Encoding, flags flags) error {
+func combineJSONFiles(fileInfos []*fileInfo, inputFormat string) ([]byte, error) {
 	// we ignore the errors because byte.Buffers generally do not return
 	// we panic on the errors because byte.Buffers generally do not return
 	// error on write, and instead only panic when they cannot grow the
@@ -196,14 +197,14 @@ func slurpFiles(fileInfos []*fileInfo, program string, encoder formats.Encoding,
 	for i, fileInfo := range fileInfos {
 		// only handle files with content
 
-		decoder, err := determineDecoder(flags.inputFormat, fileInfo)
+		decoder, err := determineDecoder(inputFormat, fileInfo)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		data, err := fileInfo.MarshalJSONBytes(decoder)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if len(bytes.TrimSpace(data)) != 0 {
 			buf.Write(data)
@@ -216,8 +217,19 @@ func slurpFiles(fileInfos []*fileInfo, program string, encoder formats.Encoding,
 	// append the last array bracket
 	buf.WriteRune(']')
 
-	data := buf.Bytes()
-	err := runJQ(program, data, encoder, flags)
+	return buf.Bytes(), nil
+}
+
+// slurpFiles takes a list of files, and for each, attempts to convert it to
+// a JSON value and appends each JSON value to an array, and passes that array
+// as the input to the jq program.
+func slurpFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string, encoder formats.Encoding, flags flags) error {
+	data, err := combineJSONFiles(fileInfos, flags.inputFormat)
+	if err != nil {
+		return err
+	}
+
+	err = runJQ(outputWriter, program, data, encoder, flags)
 	if err != nil {
 		return err
 	}
@@ -273,14 +285,14 @@ func readFile(path string, flags flags) (*fileInfo, error) {
 	return &fileInfo{path: path, reader: file}, nil
 }
 
-func runJQ(program string, data []byte, encoder formats.Encoding, flags flags) error {
+func runJQ(outputWriter io.Writer, program string, data []byte, encoder formats.Encoding, flags flags) error {
 	resultJvs, err := execJQProgram(program, data)
 	if err != nil {
 		return err
 	}
 
 	for _, resultJv := range resultJvs {
-		err := printJV(resultJv, encoder, flags)
+		err := printJV(outputWriter, resultJv, encoder, flags)
 		if err != nil {
 			return err
 		}
@@ -289,7 +301,7 @@ func runJQ(program string, data []byte, encoder formats.Encoding, flags flags) e
 	return nil
 }
 
-func printJV(jv *jq.Jv, encoder formats.Encoding, flags flags) error {
+func printJV(outputWriter io.Writer, jv *jq.Jv, encoder formats.Encoding, flags flags) error {
 	resultBytes := []byte(jv.Dump(jq.JvPrintNone))
 	output, err := encoder.UnmarshalJSONBytes(resultBytes)
 	if err != nil {
@@ -315,7 +327,7 @@ func printJV(jv *jq.Jv, encoder formats.Encoding, flags flags) error {
 		}
 	}
 
-	fmt.Println(string(output))
+	fmt.Fprintln(outputWriter, string(output))
 	return nil
 }
 
