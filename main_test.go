@@ -124,7 +124,7 @@ func TestRunFaq(t *testing.T) {
 				})
 			}
 			var outputBuf bytes.Buffer
-			err := runFaq2(&outputBuf, fileInfos, testCase.program, testCase.flags)
+			err := runFaq(&outputBuf, fileInfos, testCase.program, testCase.flags)
 			if err != nil {
 				t.Errorf("expected no err, got %#v", err)
 			}

@@ -84,10 +84,6 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		flags.monochrome = true
 	}
 
-	return runFaq(args, flags)
-}
-
-func runFaq(args []string, flags flags) error {
 	// Check to see execution is in an interactive terminal and set the args
 	// and flags as such.
 	program := ""
@@ -116,7 +112,7 @@ func runFaq(args []string, flags flags) error {
 		paths = args[1:]
 	}
 
-	// verify all files exist, and open them:
+	// Verify all files exist, and open them.
 	var fileInfos []*fileInfo
 	for _, path := range paths {
 		fileInfo, err := openFile(path, flags)
@@ -126,10 +122,10 @@ func runFaq(args []string, flags flags) error {
 		fileInfos = append(fileInfos, fileInfo)
 	}
 
-	return runFaq2(os.Stdout, fileInfos, program, flags)
+	return runFaq(os.Stdout, fileInfos, program, flags)
 }
 
-func runFaq2(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags flags) error {
+func runFaq(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags flags) error {
 	// If stdout isn't an interactive tty, then default to monochrome.
 	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
 		flags.monochrome = true
@@ -183,10 +179,7 @@ func processFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string,
 	return nil
 }
 
-func combineJSONFiles(fileInfos []*fileInfo, inputFormat string) ([]byte, error) {
-	// we ignore the errors because byte.Buffers generally do not return
-	// error on write, and instead only panic when they cannot grow the
-	// underlying slice.
+func combineJSONFilesToJSONArray(fileInfos []*fileInfo, inputFormat string) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// append the first array bracket
@@ -194,8 +187,6 @@ func combineJSONFiles(fileInfos []*fileInfo, inputFormat string) ([]byte, error)
 
 	// iterate over each file, appending it's contents to an array
 	for i, fileInfo := range fileInfos {
-		// only handle files with content
-
 		decoder, err := determineDecoder(inputFormat, fileInfo)
 		if err != nil {
 			return nil, err
@@ -223,7 +214,7 @@ func combineJSONFiles(fileInfos []*fileInfo, inputFormat string) ([]byte, error)
 // a JSON value and appends each JSON value to an array, and passes that array
 // as the input to the jq program.
 func slurpFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string, encoder formats.Encoding, flags flags) error {
-	data, err := combineJSONFiles(fileInfos, flags.inputFormat)
+	data, err := combineJSONFilesToJSONArray(fileInfos, flags.inputFormat)
 	if err != nil {
 		return err
 	}
