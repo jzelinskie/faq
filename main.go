@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -56,6 +57,7 @@ How do you pronounce "faq"? Fuck you.
 	rootCmd.Flags().BoolP("color-output", "c", true, "colorize the output")
 	rootCmd.Flags().BoolP("monochrome-output", "m", false, "monochrome (don't colorize the output)")
 	rootCmd.Flags().BoolP("pretty-output", "p", true, "pretty-printed output")
+	rootCmd.Flags().BoolP("slurp", "s", false, "read (slurp) all inputs into an array; apply filter to it")
 
 	rootCmd.Flags().MarkHidden("debug")
 
@@ -69,6 +71,7 @@ type flags struct {
 	color        bool
 	monochrome   bool
 	pretty       bool
+	slurp        bool
 }
 
 func runCmdFunc(cmd *cobra.Command, args []string) error {
@@ -79,14 +82,19 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 	flags.color, _ = cmd.Flags().GetBool("color-output")
 	flags.pretty, _ = cmd.Flags().GetBool("pretty-output")
 	flags.monochrome, _ = cmd.Flags().GetBool("monochrome-output")
+	flags.slurp, _ = cmd.Flags().GetBool("slurp")
 	if runtime.GOOS == "windows" {
 		flags.monochrome = true
 	}
 
+	return runFaq(args, flags)
+}
+
+func runFaq(args []string, flags flags) error {
 	// Check to see execution is in an interactive terminal and set the args
 	// and flags as such.
 	program := ""
-	pathArgs := []string{}
+	paths := []string{}
 
 	// If stdout isn't an interactive tty, then default to monochrome.
 	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
@@ -98,13 +106,13 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 		switch {
 		case len(args) == 0:
 			program = "."
-			pathArgs = []string{"/dev/stdin"}
+			paths = []string{"/dev/stdin"}
 		case len(args) == 1:
 			program = args[0]
-			pathArgs = []string{"/dev/stdin"}
+			paths = []string{"/dev/stdin"}
 		case len(args) > 1:
 			program = args[0]
-			pathArgs = args[1:]
+			paths = args[1:]
 		default:
 			return fmt.Errorf("not enough arguments provided")
 		}
@@ -113,12 +121,24 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("not enough arguments provided")
 		}
 		program = args[0]
-		pathArgs = args[1:]
+		paths = args[1:]
 	}
 
 	// Handle each file path provided.
-	for _, pathArg := range pathArgs {
-		err := processPathArg(pathArg, program, flags)
+	if flags.slurp {
+		if flags.outputFormat == "" {
+			return fmt.Errorf("must specify --output-format when using --slurp")
+		}
+		encoder, ok := formatByName(flags.outputFormat)
+		if !ok {
+			return fmt.Errorf("invalid --output-format %s", flags.outputFormat)
+		}
+		err := slurpFiles(paths, program, encoder, flags)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := processFiles(paths, program, flags)
 		if err != nil {
 			return err
 		}
@@ -127,40 +147,107 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func processPathArg(pathArg, program string, flags flags) error {
-	path := os.ExpandEnv(pathArg)
+// processFiles takes a list of files, and for each, attempts to convert it
+// to a JSON value and runs the jq program it
+func processFiles(paths []string, program string, flags flags) error {
+	for _, path := range paths {
+		fileInfo, err := readFile(path, flags)
+		if err != nil {
+			return err
+		}
+
+		err = runJQ(program, fileInfo.data, fileInfo.encoder, flags)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// slurpFiles takes a list of files, and for each, attempts to convert it to
+// a JSON value and appends each JSON value to an array, and passes that array
+// as the input to the jq program.
+func slurpFiles(paths []string, program string, encoder formats.Encoding, flags flags) error {
+	// we ignore the errors because byte.Buffers generally do not return
+	// error on write, and instead only panic when they cannot grow the
+	// underlying slice.
+	var buf bytes.Buffer
+
+	// append the first array bracket
+	buf.WriteRune('[')
+
+	// iterate over each file, appending it's contents to an array
+	for i, path := range paths {
+		fileInfo, err := readFile(path, flags)
+		if err != nil {
+			return err
+		}
+		// only handle files with content
+		if len(bytes.TrimSpace(fileInfo.data)) != 0 {
+			buf.Write(fileInfo.data)
+			// append the comma if it isn't the last item in the array
+			if i != len(paths)-1 {
+				buf.WriteRune(',')
+			}
+		}
+	}
+	// append the last array bracket
+	buf.WriteRune(']')
+
+	data := buf.Bytes()
+	err := runJQ(program, data, encoder, flags)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type fileInfo struct {
+	path             string
+	data             []byte
+	encoder, decoder formats.Encoding
+}
+
+func readFile(path string, flags flags) (*fileInfo, error) {
+	path = os.ExpandEnv(path)
 	fileBytes, err := ioutil.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read file at %s: `%s`", path, err)
+		return nil, fmt.Errorf("failed to read file at %s: `%s`", path, err)
 	}
 
 	// If there was no input, there's no output!
 	if len(fileBytes) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	decoder, err := determineDecoder(flags.inputFormat, path, fileBytes)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	encoder, err := determineEncoder(flags.outputFormat, decoder)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	jsonifiedFile, err := decoder.MarshalJSONBytes(fileBytes)
+	data, err := decoder.MarshalJSONBytes(fileBytes)
 	if err != nil {
-		return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
+		return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
 	}
 
-	resultJvs, err := execJQProgram(program, path, jsonifiedFile)
+	return &fileInfo{path: path, data: data, encoder: encoder, decoder: decoder}, nil
+}
+
+func runJQ(program string, data []byte, encoder formats.Encoding, flags flags) error {
+	resultJvs, err := execJQProgram(program, data)
 	if err != nil {
 		return err
 	}
 
 	for _, resultJv := range resultJvs {
-		err := printJV(resultJv, encoder, decoder, flags)
+		err := printJV(resultJv, encoder, flags)
 		if err != nil {
 			return err
 		}
@@ -169,7 +256,7 @@ func processPathArg(pathArg, program string, flags flags) error {
 	return nil
 }
 
-func printJV(jv *jq.Jv, encoder, decoder formats.Encoding, flags flags) error {
+func printJV(jv *jq.Jv, encoder formats.Encoding, flags flags) error {
 	resultBytes := []byte(jv.Dump(jq.JvPrintNone))
 	output, err := encoder.UnmarshalJSONBytes(resultBytes)
 	if err != nil {
@@ -199,7 +286,7 @@ func printJV(jv *jq.Jv, encoder, decoder formats.Encoding, flags flags) error {
 	return nil
 }
 
-func execJQProgram(program, path string, jsonBytes []byte) ([]*jq.Jv, error) {
+func execJQProgram(program string, jsonBytes []byte) ([]*jq.Jv, error) {
 	libjq, err := jq.New()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize libjq: %s", err)
@@ -208,19 +295,19 @@ func execJQProgram(program, path string, jsonBytes []byte) ([]*jq.Jv, error) {
 
 	fileJv, err := jq.JvFromJSONBytes(jsonBytes)
 	if err != nil {
-		panic("failed to convert jsonified file into jv")
+		return nil, fmt.Errorf("unable to convert to json value from bytes: %s", err)
 	}
 
 	errs := libjq.Compile(program, jq.JvArray())
 	for _, err := range errs {
 		if err != nil {
-			return nil, fmt.Errorf("failed to compile jq program for file at %s: %s", path, err)
+			return nil, fmt.Errorf("failed to compile jq program: %s", err)
 		}
 	}
 
 	resultJvs, err := libjq.Execute(fileJv)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute jq program for file at %s: %s", path, err)
+		return nil, fmt.Errorf("failed to execute jq program: %s", err)
 	}
 
 	return resultJvs, nil
@@ -235,7 +322,7 @@ func determineDecoder(inputFormat, path string, fileBytes []byte) (formats.Encod
 			return nil, errors.New("failed to detect format of the input")
 		}
 	} else {
-		decoder, ok = formats.ByName[strings.ToLower(inputFormat)]
+		decoder, ok = formatByName(inputFormat)
 		if !ok {
 			return nil, fmt.Errorf("no supported format found named %s", inputFormat)
 		}
@@ -250,7 +337,7 @@ func determineEncoder(outputFormat string, decoder formats.Encoding) (formats.En
 	if outputFormat == "auto" {
 		encoder = decoder
 	} else {
-		encoder, ok = formats.ByName[strings.ToLower(outputFormat)]
+		encoder, ok = formatByName(outputFormat)
 		if !ok {
 			return nil, fmt.Errorf("no supported format found named %s", outputFormat)
 		}
@@ -261,7 +348,7 @@ func determineEncoder(outputFormat string, decoder formats.Encoding) (formats.En
 
 func detectFormat(fileBytes []byte, path string) (formats.Encoding, bool) {
 	if ext := filepath.Ext(path); ext != "" {
-		if format, ok := formats.ByName[ext[1:]]; ok {
+		if format, ok := formatByName(ext[1:]); ok {
 			return format, true
 		}
 	}
@@ -278,4 +365,11 @@ func detectFormat(fileBytes []byte, path string) (formats.Encoding, bool) {
 	// Go isn't smart enough to do this in one line.
 	enc, ok := formats.ByName[format]
 	return enc, ok
+}
+
+func formatByName(name string) (formats.Encoding, bool) {
+	if format, ok := formats.ByName[strings.ToLower(name)]; ok {
+		return format, true
+	}
+	return nil, false
 }
