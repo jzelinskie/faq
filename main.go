@@ -185,7 +185,6 @@ func processFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string,
 
 func combineJSONFiles(fileInfos []*fileInfo, inputFormat string) ([]byte, error) {
 	// we ignore the errors because byte.Buffers generally do not return
-	// we panic on the errors because byte.Buffers generally do not return
 	// error on write, and instead only panic when they cannot grow the
 	// underlying slice.
 	var buf bytes.Buffer
