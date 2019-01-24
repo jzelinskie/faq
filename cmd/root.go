@@ -1,0 +1,432 @@
+package cmd
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+
+	"github.com/Azure/draft/pkg/linguist"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
+	"golang.org/x/crypto/ssh/terminal"
+
+	"github.com/jzelinskie/faq/formats"
+	"github.com/jzelinskie/faq/jq"
+)
+
+// Root is the top level Cobra command for the faq binary.
+var Root = &cobra.Command{
+	Use:   "faq [flags] [filter string] [files...]",
+	Short: "format agnostic querier",
+	Long: `faq is a tool intended to be a more flexible "jq", supporting additional formats.
+The additional formats are converted into JSON and processed with libjq.
+
+Supported formats:
+- BSON
+- Bencode
+- JSON
+- TOML
+- XML
+- YAML
+
+$FAQ_FORMATTER can be set to terminal, terminal16m, json, tokens, html.
+$FAQ_STYLE can be set to any of the following themes:
+https://xyproto.github.io/splash/docs/
+
+How do you pronounce "faq"? Fuck you.
+`,
+	DisableFlagsInUseLine: true,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if debug, _ := cmd.Flags().GetBool("debug"); debug {
+			logrus.SetLevel(logrus.DebugLevel)
+		}
+		return nil
+	},
+	RunE: rootRunCmdFunc,
+}
+
+func init() {
+	Root.Flags().Bool("debug", false, "enable debug logging")
+	Root.Flags().StringP("input-format", "f", "auto", "input format")
+	Root.Flags().StringP("output-format", "o", "auto", "output format")
+	Root.Flags().BoolP("raw-output", "r", false, "output raw strings, not JSON texts")
+	Root.Flags().BoolP("color-output", "c", true, "colorize the output")
+	Root.Flags().BoolP("monochrome-output", "m", false, "monochrome (don't colorize the output)")
+	Root.Flags().BoolP("pretty-output", "p", true, "pretty-printed output")
+	Root.Flags().BoolP("slurp", "s", false, "read (slurp) all inputs into an array; apply filter to it")
+
+	Root.Flags().MarkHidden("debug")
+}
+
+type flags struct {
+	inputFormat  string
+	outputFormat string
+	raw          bool
+	color        bool
+	monochrome   bool
+	pretty       bool
+	slurp        bool
+}
+
+func rootRunCmdFunc(cmd *cobra.Command, args []string) error {
+	// This is a hidden command for developers to generate metadata.
+	// If you try to add this as a Cobra command, ambiguity causes the Root
+	// command to break.
+	if len(args) == 2 && args[0] == "generate" {
+		switch args[1] {
+		case "docs":
+			return doc.GenMarkdown(cmd, os.Stdout)
+		case "completion":
+			return cmd.GenBashCompletion(os.Stdout)
+		}
+	}
+
+	var flags flags
+	flags.inputFormat, _ = cmd.Flags().GetString("input-format")
+	flags.outputFormat, _ = cmd.Flags().GetString("output-format")
+	flags.raw, _ = cmd.Flags().GetBool("raw-output")
+	flags.color, _ = cmd.Flags().GetBool("color-output")
+	flags.pretty, _ = cmd.Flags().GetBool("pretty-output")
+	flags.monochrome, _ = cmd.Flags().GetBool("monochrome-output")
+	flags.slurp, _ = cmd.Flags().GetBool("slurp")
+	if runtime.GOOS == "windows" {
+		flags.monochrome = true
+	}
+
+	// Check to see execution is in an interactive terminal and set the args
+	// and flags as such.
+	program := ""
+	paths := []string{}
+
+	// Determine the jq program and arguments if a unix being used or not.
+	if !terminal.IsTerminal(int(os.Stdin.Fd())) {
+		switch {
+		case len(args) == 0:
+			program = "."
+			paths = []string{"/dev/stdin"}
+		case len(args) == 1:
+			program = args[0]
+			paths = []string{"/dev/stdin"}
+		case len(args) > 1:
+			program = args[0]
+			paths = args[1:]
+		default:
+			return fmt.Errorf("not enough arguments provided")
+		}
+	} else {
+		if len(args) < 2 {
+			io.WriteString(os.Stderr, cmd.Long+"\n")
+			return fmt.Errorf("not enough arguments provided")
+		}
+		program = args[0]
+		paths = args[1:]
+	}
+
+	// Verify all files exist, and open them.
+	var fileInfos []*fileInfo
+	for _, path := range paths {
+		fileInfo, err := openFile(path, flags)
+		if err != nil {
+			return err
+		}
+		fileInfos = append(fileInfos, fileInfo)
+	}
+
+	return runFaq(os.Stdout, fileInfos, program, flags)
+}
+
+func runFaq(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags flags) error {
+	// If stdout isn't an interactive tty, then default to monochrome.
+	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
+		flags.monochrome = true
+	}
+
+	// Handle each file path provided.
+	if flags.slurp {
+		if flags.outputFormat == "" {
+			return fmt.Errorf("must specify --output-format when using --slurp")
+		}
+		encoder, ok := formatByName(flags.outputFormat)
+		if !ok {
+			return fmt.Errorf("invalid --output-format %s", flags.outputFormat)
+		}
+		err := slurpFiles(outputWriter, fileInfos, program, encoder, flags)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := processFiles(outputWriter, fileInfos, program, flags)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// processFiles takes a list of files, and for each, attempts to convert it
+// to a JSON value and runs the jq program it
+func processFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags flags) error {
+	for _, fileInfo := range fileInfos {
+		decoder, err := determineDecoder(flags.inputFormat, fileInfo)
+		if err != nil {
+			return err
+		}
+		data, err := fileInfo.MarshalJSONBytes(decoder)
+		if err != nil {
+			return err
+		}
+		encoder, err := determineEncoder(flags.outputFormat, decoder)
+		if err != nil {
+			return err
+		}
+		err = runJQ(outputWriter, program, data, encoder, flags)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func combineJSONFilesToJSONArray(fileInfos []*fileInfo, inputFormat string) ([]byte, error) {
+	var buf bytes.Buffer
+
+	// append the first array bracket
+	buf.WriteRune('[')
+
+	// iterate over each file, appending it's contents to an array
+	for i, fileInfo := range fileInfos {
+		decoder, err := determineDecoder(inputFormat, fileInfo)
+		if err != nil {
+			return nil, err
+		}
+
+		data, err := fileInfo.MarshalJSONBytes(decoder)
+		if err != nil {
+			return nil, err
+		}
+		if len(bytes.TrimSpace(data)) != 0 {
+			buf.Write(data)
+			// append the comma if it isn't the last item in the array
+			if i != len(fileInfos)-1 {
+				buf.WriteRune(',')
+			}
+		}
+	}
+	// append the last array bracket
+	buf.WriteRune(']')
+
+	return buf.Bytes(), nil
+}
+
+// slurpFiles takes a list of files, and for each, attempts to convert it to
+// a JSON value and appends each JSON value to an array, and passes that array
+// as the input to the jq program.
+func slurpFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string, encoder formats.Encoding, flags flags) error {
+	data, err := combineJSONFilesToJSONArray(fileInfos, flags.inputFormat)
+	if err != nil {
+		return err
+	}
+
+	err = runJQ(outputWriter, program, data, encoder, flags)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type fileInfo struct {
+	path   string
+	reader io.Reader
+	data   []byte
+	read   bool
+}
+
+func (info *fileInfo) MarshalJSONBytes(decoder formats.Encoding) ([]byte, error) {
+	fileBytes, err := info.GetContents()
+	if err != nil {
+		return nil, err
+	}
+	data, err := decoder.MarshalJSONBytes(fileBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", info.path, err)
+	}
+	return data, err
+}
+
+func (info *fileInfo) GetContents() ([]byte, error) {
+	if !info.read {
+		if readCloser, ok := info.reader.(io.ReadCloser); ok {
+			defer readCloser.Close()
+		}
+		var err error
+		info.data, err = ioutil.ReadAll(info.reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read file at %s: `%s`", info.path, err)
+		}
+
+		info.read = true
+	}
+	return info.data, nil
+}
+
+func openFile(path string, flags flags) (*fileInfo, error) {
+	path = os.ExpandEnv(path)
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file at %s: `%s`", path, err)
+	}
+
+	return &fileInfo{path: path, reader: file}, nil
+}
+
+func runJQ(outputWriter io.Writer, program string, data []byte, encoder formats.Encoding, flags flags) error {
+	resultJvs, err := execJQProgram(program, data)
+	if err != nil {
+		return err
+	}
+
+	for _, resultJv := range resultJvs {
+		err := printJV(outputWriter, resultJv, encoder, flags)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func printJV(outputWriter io.Writer, jv *jq.Jv, encoder formats.Encoding, flags flags) error {
+	resultBytes := []byte(jv.Dump(jq.JvPrintNone))
+	output, err := encoder.UnmarshalJSONBytes(resultBytes)
+	if err != nil {
+		return fmt.Errorf("failed to encode jq program output as %s: %s", flags.outputFormat, err)
+	}
+
+	if flags.pretty {
+		output, err = encoder.PrettyPrint(output)
+		if err != nil {
+			return fmt.Errorf("failed to encode jq program output as pretty %s: %s", flags.outputFormat, err)
+		}
+	}
+
+	if flags.raw {
+		output, err = encoder.Raw(output)
+		if err != nil {
+			return fmt.Errorf("failed to encode jq program output as raw %s: %s", flags.outputFormat, err)
+		}
+	} else if flags.color && !flags.monochrome {
+		output, err = encoder.Color(output)
+		if err != nil {
+			return fmt.Errorf("failed to encode jq program output as color %s: %s", flags.outputFormat, err)
+		}
+	}
+
+	fmt.Fprintln(outputWriter, string(output))
+	return nil
+}
+
+func execJQProgram(program string, jsonBytes []byte) ([]*jq.Jv, error) {
+	libjq, err := jq.New()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize libjq: %s", err)
+	}
+	defer libjq.Close()
+
+	fileJv, err := jq.JvFromJSONBytes(jsonBytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to convert to json value from bytes: %s", err)
+	}
+
+	errs := libjq.Compile(program, jq.JvArray())
+	for _, err := range errs {
+		if err != nil {
+			return nil, fmt.Errorf("failed to compile jq program: %s", err)
+		}
+	}
+
+	resultJvs, err := libjq.Execute(fileJv)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute jq program: %s", err)
+	}
+
+	return resultJvs, nil
+}
+
+func determineDecoder(inputFormat string, fileInfo *fileInfo) (formats.Encoding, error) {
+	var decoder formats.Encoding
+	var err error
+	if inputFormat == "auto" {
+		decoder, err = detectFormat(fileInfo)
+	} else {
+		var ok bool
+		decoder, ok = formatByName(inputFormat)
+		if !ok {
+			err = fmt.Errorf("no supported format found named %s", inputFormat)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return decoder, nil
+}
+
+func determineEncoder(outputFormat string, decoder formats.Encoding) (formats.Encoding, error) {
+	var encoder formats.Encoding
+	var ok bool
+	if outputFormat == "auto" {
+		encoder = decoder
+	} else {
+		encoder, ok = formatByName(outputFormat)
+		if !ok {
+			return nil, fmt.Errorf("no supported format found named %s", outputFormat)
+		}
+	}
+
+	return encoder, nil
+}
+
+func detectFormat(fileInfo *fileInfo) (formats.Encoding, error) {
+	if ext := filepath.Ext(fileInfo.path); ext != "" {
+		if format, ok := formatByName(ext[1:]); ok {
+			return format, nil
+		}
+	}
+
+	fileBytes, err := fileInfo.GetContents()
+	if err != nil {
+		return nil, err
+	}
+	format := linguist.LanguageByContents(fileBytes, linguist.LanguageHints(fileInfo.path))
+	format = strings.ToLower(format)
+
+	// This is what linguist says when it has no idea what it's talking about.
+	// For now, just fallback to JSON.
+	if format == "coq" {
+		format = "json"
+	}
+
+	// Go isn't smart enough to do this in one line.
+	enc, ok := formats.ByName[format]
+	if !ok {
+		return nil, errors.New("failed to detect format of the input")
+	}
+	return enc, nil
+}
+
+func formatByName(name string) (formats.Encoding, bool) {
+	if format, ok := formats.ByName[strings.ToLower(name)]; ok {
+		return format, true
+	}
+	return nil, false
+}
