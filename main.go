@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
+	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/jzelinskie/faq/formats"
 	"github.com/jzelinskie/faq/jq"
@@ -159,27 +161,65 @@ func runFaq(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags
 }
 
 // processFiles takes a list of files, and for each, attempts to convert it
-// to a JSON value and runs the jq program it
+// to a JSON value and runs the jq program against it
 func processFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags flags) error {
 	for _, fileInfo := range fileInfos {
 		decoder, err := determineDecoder(flags.inputFormat, fileInfo)
 		if err != nil {
 			return err
 		}
-		data, err := fileInfo.MarshalJSONBytes(decoder)
+
+		fileBytes, err := fileInfo.GetContents()
 		if err != nil {
 			return err
 		}
-		encoder, err := determineEncoder(flags.outputFormat, decoder)
-		if err != nil {
-			return err
-		}
-		err = runJQ(outputWriter, program, data, encoder, flags)
-		if err != nil {
-			return err
+
+		if flags.inputFormat == "yaml" {
+			// handle yaml streams
+			docDecoder := yaml.NewYAMLReader(bufio.NewReader(bytes.NewBuffer(fileBytes)))
+			for {
+				var docBytes []byte
+				docBytes, err := docDecoder.Read()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					return err
+				}
+				if len(bytes.TrimSpace(docBytes)) != 0 {
+					err = convertInputAndRun(outputWriter, decoder, docBytes, fileInfo.path, program, flags)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		} else {
+			if len(bytes.TrimSpace(fileBytes)) != 0 {
+				err := convertInputAndRun(outputWriter, decoder, fileBytes, fileInfo.path, program, flags)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
+	return nil
+}
+
+func convertInputAndRun(outputWriter io.Writer, decoder formats.Encoding, fileBytes []byte, path, program string, flags flags) error {
+	data, err := decoder.MarshalJSONBytes(fileBytes)
+	if err != nil {
+		return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
+	}
+
+	encoder, err := determineEncoder(flags.outputFormat, decoder)
+	if err != nil {
+		return err
+	}
+	err = runJQ(outputWriter, program, data, encoder, flags)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -196,17 +236,64 @@ func combineJSONFilesToJSONArray(fileInfos []*fileInfo, inputFormat string) ([]b
 			return nil, err
 		}
 
-		data, err := fileInfo.MarshalJSONBytes(decoder)
+		fileBytes, err := fileInfo.GetContents()
 		if err != nil {
 			return nil, err
 		}
-		if len(bytes.TrimSpace(data)) != 0 {
-			buf.Write(data)
-			// append the comma if it isn't the last item in the array
-			if i != len(fileInfos)-1 {
-				buf.WriteRune(',')
+
+		if inputFormat == "yaml" {
+			// check if the file is a yaml stream containing multiple documents
+			docDecoder := yaml.NewYAMLReader(bufio.NewReader(bytes.NewBuffer(fileBytes)))
+
+			var items [][]byte
+			for {
+				docBytes, err := docDecoder.Read()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					return nil, err
+				}
+				docAsJSON, err := decoder.MarshalJSONBytes(docBytes)
+				if err != nil {
+					return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", fileInfo.path, err)
+				}
+
+				if len(bytes.TrimSpace(docAsJSON)) != 0 {
+					items = append(items, docAsJSON)
+				}
+			}
+
+			if len(items) != 0 {
+				for j, data := range items {
+					// write each document
+					buf.Write(data)
+					// write a comma between each document unless it's the last
+					// document
+					if j != len(items)-1 {
+						buf.WriteRune(',')
+					}
+				}
+				// write a comma between the contents of each file unless we're
+				// on the last file
+				if i != len(fileInfos)-1 {
+					buf.WriteRune(',')
+				}
+			}
+		} else {
+			data, err := decoder.MarshalJSONBytes(fileBytes)
+			if err != nil {
+				return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", fileInfo.path, err)
+			}
+
+			if len(bytes.TrimSpace(data)) != 0 {
+				buf.Write(data)
+				if i != len(fileInfos)-1 {
+					buf.WriteRune(',')
+				}
 			}
 		}
+
 	}
 	// append the last array bracket
 	buf.WriteRune(']')
@@ -236,18 +323,6 @@ type fileInfo struct {
 	reader io.Reader
 	data   []byte
 	read   bool
-}
-
-func (info *fileInfo) MarshalJSONBytes(decoder formats.Encoding) ([]byte, error) {
-	fileBytes, err := info.GetContents()
-	if err != nil {
-		return nil, err
-	}
-	data, err := decoder.MarshalJSONBytes(fileBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", info.path, err)
-	}
-	return data, err
 }
 
 func (info *fileInfo) GetContents() ([]byte, error) {

@@ -43,6 +43,81 @@ func TestRunFaq(t *testing.T) {
 			},
 		},
 		{
+			name:    "single file yaml stream simple program",
+			program: ".",
+			inputFileContents: []string{
+				`---
+foo: true
+---
+bar: false`,
+			},
+			expectedOutput: `{"foo":true}
+{"bar":false}
+`,
+			flags: flags{
+				inputFormat:  "yaml",
+				outputFormat: "json",
+			},
+		},
+		{
+			// TODO: this should return "" as the output probably
+			name:    "FIXME single file yaml single empty yaml stream simple program",
+			program: ".",
+			inputFileContents: []string{
+				`---
+`,
+			},
+			expectedOutput: `null
+`,
+			flags: flags{
+				inputFormat:  "yaml",
+				outputFormat: "json",
+			},
+		},
+		{
+			// TODO: this should return "" as the output probably
+			name:    "FIXME single file yaml multiple empty yaml stream simple program",
+			program: ".",
+			inputFileContents: []string{
+				`---
+---
+---
+`,
+			},
+			expectedOutput: "null\nnull\n",
+			flags: flags{
+				inputFormat:  "yaml",
+				outputFormat: "json",
+			},
+		},
+		{
+			name:    "single file yaml stream with extra newlines simple program",
+			program: ".",
+			inputFileContents: []string{
+				// these extra newlines are intentionally here to ensure
+				// they're not treated specially
+				`
+
+
+---
+
+foo: true
+
+---
+
+bar: false
+
+`,
+			},
+			expectedOutput: `{"foo":true}
+{"bar":false}
+`,
+			flags: flags{
+				inputFormat:  "yaml",
+				outputFormat: "json",
+			},
+		},
+		{
 			name:    "single file bool simple program",
 			program: ".",
 			inputFileContents: []string{
@@ -110,6 +185,28 @@ func TestRunFaq(t *testing.T) {
 				slurp:        true,
 			},
 		},
+		{
+			name:    "slurp multiple file yaml stream simple program",
+			program: ".",
+			inputFileContents: []string{
+				`---
+foo: true
+---
+bar: false`,
+				`---
+fizz: buzz
+---
+cats: dogs
+`,
+			},
+			expectedOutput: `[{"foo":true},{"bar":false},{"fizz":"buzz"},{"cats":"dogs"}]
+`,
+			flags: flags{
+				inputFormat:  "yaml",
+				outputFormat: "json",
+				slurp:        true,
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -128,6 +225,7 @@ func TestRunFaq(t *testing.T) {
 			if err != nil {
 				t.Errorf("expected no err, got %#v", err)
 			}
+
 			output := outputBuf.String()
 			if output != testCase.expectedOutput {
 				t.Errorf("incorrect output expected=%s, got=%s", testCase.expectedOutput, output)
