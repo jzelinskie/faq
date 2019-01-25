@@ -20,14 +20,14 @@ require (
 	github.com/sergi/go-diff v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.0.5
 	github.com/spf13/cobra v0.0.3
-	github.com/spf13/pflag v1.0.1 // indirect
+	github.com/spf13/pflag v1.0.1
 	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/zeebo/bencode v0.0.0-20180308174530-d522839ac797
 	golang.org/x/crypto v0.0.0-20180621125126-a49355c7e3f8
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 	gopkg.in/yaml.v2 v2.2.1
-	k8s.io/apimachinery v0.0.0-20190119020841-d41becfba9ee
+	k8s.io/apimachinery v0.0.0-20190119020841-d41becfba9ee // indirect
 	k8s.io/klog v0.1.0 // indirect
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )

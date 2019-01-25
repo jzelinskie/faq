@@ -18,6 +18,14 @@ import (
 
 	"github.com/jzelinskie/faq/formats"
 	"github.com/jzelinskie/faq/jq"
+	"github.com/jzelinskie/faq/pkg/flagutil"
+)
+
+var (
+	stringKwargsFlag         = flagutil.NewKwargStringFlag()
+	jsonKwargsFlag           = flagutil.NewKwargStringFlag()
+	stringPositionalArgsFlag = flagutil.NewPositionalArgStringFlag()
+	jsonPositionalArgsFlag   = flagutil.NewPositionalArgStringFlag()
 )
 
 func main() {
@@ -59,10 +67,18 @@ How do you pronounce "faq"? Fuck you.
 	rootCmd.Flags().BoolP("monochrome-output", "m", false, "monochrome (don't colorize the output)")
 	rootCmd.Flags().BoolP("pretty-output", "p", true, "pretty-printed output")
 	rootCmd.Flags().BoolP("slurp", "s", false, "read (slurp) all inputs into an array; apply filter to it")
+	rootCmd.Flags().BoolP("null-input", "n", false, "use `null` as the single input value")
+	rootCmd.Flags().Var(stringPositionalArgsFlag, "args", `Takes a value and adds it to the position arguments list. Values are always strings. Positional arguments are available as $ARGS.positional[]. Specify --args multiple times to pass additional arguments.`)
+	rootCmd.Flags().Var(jsonPositionalArgsFlag, "jsonargs", `Takes a value and adds it to the position arguments list. Values are parsed as JSON values. Positional arguments are available as $ARGS.positional[]. Specify --jsonargs multiple times to pass additional arguments.`)
+	rootCmd.Flags().Var(stringKwargsFlag, "kwargs", `Takes a key=value pair, setting $key to <value>: --kwargs foo=bar sets $foo to "bar". Values are always strings. Named arguments are also available as $ARGS.named[]. Specify --kwargs multiple times to add more arguments.`)
+	rootCmd.Flags().Var(jsonKwargsFlag, "jsonkwargs", `Takes a key=value pair, setting $key to the JSON value of <value>: --kwargs foo={"fizz": "buzz"} sets $foo to the json object {"fizz": "buzz"}. Values are parsed as JSON values. Named arguments are also available as $ARGS.named[]. Specify --jsonkwargs multiple times to add more arguments.`)
 
-	rootCmd.Flags().MarkHidden("debug")
+	_ = rootCmd.Flags().MarkHidden("debug")
 
-	rootCmd.Execute()
+	err := rootCmd.Execute()
+	if err != nil {
+		fmt.Printf("error executing command: %s\n", err)
+	}
 }
 
 type flags struct {
@@ -73,6 +89,11 @@ type flags struct {
 	monochrome   bool
 	pretty       bool
 	slurp        bool
+	provideNull  bool
+	args         []string
+	jsonargs     [][]byte
+	kwargs       map[string][]byte
+	jsonkwargs   map[string][]byte
 }
 
 func runCmdFunc(cmd *cobra.Command, args []string) error {
@@ -84,6 +105,15 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 	flags.pretty, _ = cmd.Flags().GetBool("pretty-output")
 	flags.monochrome, _ = cmd.Flags().GetBool("monochrome-output")
 	flags.slurp, _ = cmd.Flags().GetBool("slurp")
+	flags.provideNull, _ = cmd.Flags().GetBool("null-input")
+
+	for _, arg := range stringPositionalArgsFlag.AsSlice() {
+		flags.args = append(flags.args, string(arg))
+	}
+	flags.jsonargs = jsonPositionalArgsFlag.AsSlice()
+	flags.kwargs = stringKwargsFlag.AsMap()
+	flags.jsonkwargs = jsonKwargsFlag.AsMap()
+
 	if runtime.GOOS == "windows" {
 		flags.monochrome = true
 	}
@@ -96,6 +126,10 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 	// Determine the jq program and arguments if a unix being used or not.
 	if !terminal.IsTerminal(int(os.Stdin.Fd())) {
 		switch {
+		case flags.provideNull && len(args) == 0:
+			program = "."
+		case flags.provideNull && len(args) == 1:
+			program = args[0]
 		case len(args) == 0:
 			program = "."
 			paths = []string{"/dev/stdin"}
@@ -109,11 +143,15 @@ func runCmdFunc(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("not enough arguments provided")
 		}
 	} else {
-		if len(args) < 2 {
+		switch {
+		case flags.provideNull && len(args) >= 1:
+			program = args[0]
+		case !flags.provideNull && len(args) >= 2:
+			program = args[0]
+			paths = args[1:]
+		default:
 			return fmt.Errorf("not enough arguments provided")
 		}
-		program = args[0]
-		paths = args[1:]
 	}
 
 	// Verify all files exist, and open them.
@@ -133,6 +171,18 @@ func runFaq(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags
 	// If stdout isn't an interactive tty, then default to monochrome.
 	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
 		flags.monochrome = true
+	}
+
+	if flags.provideNull {
+		encoder, ok := formatByName(flags.outputFormat)
+		if !ok {
+			return fmt.Errorf("invalid --output-format %s", flags.outputFormat)
+		}
+		err := runJQ(outputWriter, program, nil, encoder, flags)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
 	// Handle each file path provided.
@@ -336,7 +386,7 @@ func openFile(path string, flags flags) (*fileInfo, error) {
 }
 
 func runJQ(outputWriter io.Writer, program string, data []byte, encoder formats.Encoding, flags flags) error {
-	resultJvs, err := execJQProgram(program, data)
+	resultJvs, err := execJQProgram(program, data, flags)
 	if err != nil {
 		return err
 	}
@@ -381,26 +431,67 @@ func printJV(outputWriter io.Writer, jv *jq.Jv, encoder formats.Encoding, flags 
 	return nil
 }
 
-func execJQProgram(program string, jsonBytes []byte) ([]*jq.Jv, error) {
+func execJQProgram(program string, jsonBytes []byte, flags flags) ([]*jq.Jv, error) {
 	libjq, err := jq.New()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize libjq: %s", err)
 	}
 	defer libjq.Close()
 
-	fileJv, err := jq.JvFromJSONBytes(jsonBytes)
-	if err != nil {
-		return nil, fmt.Errorf("unable to convert to json value from bytes: %s", err)
+	var inputJv *jq.Jv
+	if flags.provideNull {
+		inputJv = jq.JvNull()
+	} else {
+		inputJv, err = jq.JvFromJSONBytes(jsonBytes)
+		if err != nil {
+			return nil, fmt.Errorf("unable to convert to json value from bytes: %s", err)
+		}
 	}
 
-	errs := libjq.Compile(program, jq.JvArray())
+	programArgs := jq.JvObject()
+	positionalArgsArray := jq.JvArray()
+	namedArgsObj := jq.JvObject()
+
+	for _, value := range flags.args {
+		positionalArgsArray = positionalArgsArray.ArrayAppend(jq.JvFromString(value))
+	}
+	for _, value := range flags.jsonargs {
+		jsonObj, err := jq.JvFromJSONBytes(value)
+		if err != nil {
+			return nil, fmt.Errorf("unable to convert json value to jq object: %v", err)
+		}
+		positionalArgsArray = positionalArgsArray.ArrayAppend(jsonObj)
+	}
+
+	for key, value := range flags.kwargs {
+		strValue := string(value)
+		programArgs = programArgs.ObjectSet(jq.JvFromString(key), jq.JvFromString(strValue))
+		namedArgsObj = namedArgsObj.ObjectSet(jq.JvFromString(key), jq.JvFromString(strValue))
+	}
+
+	for key, jsonValue := range flags.jsonkwargs {
+		jsonObj, err := jq.JvFromJSONBytes(jsonValue)
+		if err != nil {
+			return nil, fmt.Errorf("unable to convert json value to jq object")
+		}
+		programArgs = programArgs.ObjectSet(jq.JvFromString(key), jsonObj)
+		namedArgsObj = namedArgsObj.ObjectSet(jq.JvFromString(key), jsonObj)
+	}
+
+	combinedArgs := jq.JvObject()
+	combinedArgs = combinedArgs.ObjectSet(jq.JvFromString("positional"), positionalArgsArray)
+	combinedArgs = combinedArgs.ObjectSet(jq.JvFromString("named"), namedArgsObj)
+
+	programArgs = programArgs.ObjectSet(jq.JvFromString("ARGS"), combinedArgs)
+
+	errs := libjq.Compile(program, programArgs.Copy())
 	for _, err := range errs {
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile jq program: %s", err)
 		}
 	}
 
-	resultJvs, err := libjq.Execute(fileJv)
+	resultJvs, err := libjq.Execute(inputJv)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute jq program: %s", err)
 	}
