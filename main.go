@@ -159,27 +159,64 @@ func runFaq(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags
 }
 
 // processFiles takes a list of files, and for each, attempts to convert it
-// to a JSON value and runs the jq program it
+// to a JSON value and runs the jq program against it
 func processFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags flags) error {
 	for _, fileInfo := range fileInfos {
 		decoder, err := determineDecoder(flags.inputFormat, fileInfo)
 		if err != nil {
 			return err
 		}
-		data, err := fileInfo.MarshalJSONBytes(decoder)
+
+		fileBytes, err := fileInfo.GetContents()
 		if err != nil {
 			return err
 		}
-		encoder, err := determineEncoder(flags.outputFormat, decoder)
-		if err != nil {
-			return err
-		}
-		err = runJQ(outputWriter, program, data, encoder, flags)
-		if err != nil {
-			return err
+
+		if len(bytes.TrimSpace(fileBytes)) != 0 {
+			err := convertInputAndRun(outputWriter, decoder, fileBytes, fileInfo.path, program, flags)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
+	return nil
+}
+
+func convertInputAndRun(outputWriter io.Writer, decoder formats.Encoding, fileBytes []byte, path, program string, flags flags) error {
+	encoder, err := determineEncoder(flags.outputFormat, decoder)
+	if err != nil {
+		return err
+	}
+
+	if streamable, ok := decoder.(formats.Streamable); ok {
+		decoder := streamable.NewDecoder(fileBytes)
+		for {
+			data, err := decoder.MarshalJSONBytes()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
+			}
+
+			err = runJQ(outputWriter, program, data, encoder, flags)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	data, err := decoder.MarshalJSONBytes(fileBytes)
+	if err != nil {
+		return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
+	}
+
+	err = runJQ(outputWriter, program, data, encoder, flags)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -196,17 +233,51 @@ func combineJSONFilesToJSONArray(fileInfos []*fileInfo, inputFormat string) ([]b
 			return nil, err
 		}
 
-		data, err := fileInfo.MarshalJSONBytes(decoder)
+		fileBytes, err := fileInfo.GetContents()
 		if err != nil {
 			return nil, err
 		}
-		if len(bytes.TrimSpace(data)) != 0 {
-			buf.Write(data)
-			// append the comma if it isn't the last item in the array
-			if i != len(fileInfos)-1 {
+
+		if streamable, ok := decoder.(formats.Streamable); ok {
+			decoder := streamable.NewDecoder(fileBytes)
+			var dataList [][]byte
+			for {
+				data, err := decoder.MarshalJSONBytes()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", fileInfo.path, err)
+				}
+				if len(bytes.TrimSpace(data)) != 0 {
+					dataList = append(dataList, data)
+				}
+			}
+			// for each json value in dataList, write it, plus a comma after
+			// it, as long it isn't the last item in dataList
+			for j, data := range dataList {
+				buf.Write(data)
+				if j != len(dataList)-1 {
+					buf.WriteRune(',')
+				}
+			}
+			// append a comma between each file
+			if len(dataList) != 0 && i != len(fileInfos)-1 {
 				buf.WriteRune(',')
 			}
+		} else {
+			data, err := decoder.MarshalJSONBytes(fileBytes)
+			if err != nil {
+				return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", fileInfo.path, err)
+			}
+			if len(bytes.TrimSpace(data)) != 0 {
+				buf.Write(data)
+				if i != len(fileInfos)-1 {
+					buf.WriteRune(',')
+				}
+			}
 		}
+
 	}
 	// append the last array bracket
 	buf.WriteRune(']')
@@ -236,18 +307,6 @@ type fileInfo struct {
 	reader io.Reader
 	data   []byte
 	read   bool
-}
-
-func (info *fileInfo) MarshalJSONBytes(decoder formats.Encoding) ([]byte, error) {
-	fileBytes, err := info.GetContents()
-	if err != nil {
-		return nil, err
-	}
-	data, err := decoder.MarshalJSONBytes(fileBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", info.path, err)
-	}
-	return data, err
 }
 
 func (info *fileInfo) GetContents() ([]byte, error) {

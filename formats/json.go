@@ -46,6 +46,29 @@ func (jsonEncoding) Color(jsonBytes []byte) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+func (jsonEncoding) NewDecoder(jsonBytes []byte) ToJSONDecoder {
+	decoder := json.NewDecoder(bytes.NewBuffer(jsonBytes))
+	return &jsonDecoder{decoder}
+}
+
+type jsonDecoder struct {
+	decoder *json.Decoder
+}
+
+func (d *jsonDecoder) MarshalJSONBytes() ([]byte, error) {
+	var tmp interface{}
+	err := d.decoder.Decode(&tmp)
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := json.Marshal(tmp)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
 func init() {
 	ByName["json"] = jsonEncoding{}
 	ByName["js"] = jsonEncoding{}

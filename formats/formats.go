@@ -9,6 +9,18 @@ type Encoding interface {
 	Color([]byte) ([]byte, error)
 }
 
+// ToJSONDecoder is a decoder that reads and decodes values that are isomorphic
+// with JSON, and produces JSON encoded output
+type ToJSONDecoder interface {
+	MarshalJSONBytes() ([]byte, error)
+}
+
+// Streamable represents any format that is decodable as a stream and
+// isomorphic with JSON.
+type Streamable interface {
+	NewDecoder([]byte) ToJSONDecoder
+}
+
 // ByName is a mapping from dynamically registered encoding names to Encoding
 // implementations.
 var ByName = map[string]Encoding{}
