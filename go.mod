@@ -26,4 +26,7 @@ require (
 	golang.org/x/crypto v0.0.0-20180621125126-a49355c7e3f8
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
+	k8s.io/apimachinery v0.0.0-20190119020841-d41becfba9ee
+	k8s.io/klog v0.1.0 // indirect
+	sigs.k8s.io/yaml v1.1.0 // indirect
 )
