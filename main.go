@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,13 +13,12 @@ import (
 	"strings"
 
 	"github.com/Azure/draft/pkg/linguist"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
-
 	"github.com/jzelinskie/faq/formats"
 	"github.com/jzelinskie/faq/jq"
 	"github.com/jzelinskie/faq/pkg/flagutil"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
@@ -386,13 +386,17 @@ func openFile(path string, flags flags) (*fileInfo, error) {
 }
 
 func runJQ(outputWriter io.Writer, program string, data []byte, encoder formats.Encoding, flags flags) error {
-	resultJvs, err := execJQProgram(program, data, flags)
+	args, input, err := determineArgsAndInput(data, flags)
 	if err != nil {
 		return err
 	}
 
-	for _, resultJv := range resultJvs {
-		err := printJV(outputWriter, resultJv, encoder, flags)
+	outputs, err := jq.Exec(program, args, input)
+	if err != nil {
+		return err
+	}
+	for _, output := range outputs {
+		err := printValue(output, outputWriter, encoder, flags)
 		if err != nil {
 			return err
 		}
@@ -401,9 +405,8 @@ func runJQ(outputWriter io.Writer, program string, data []byte, encoder formats.
 	return nil
 }
 
-func printJV(outputWriter io.Writer, jv *jq.Jv, encoder formats.Encoding, flags flags) error {
-	resultBytes := []byte(jv.Dump(jq.JvPrintNone))
-	output, err := encoder.UnmarshalJSONBytes(resultBytes)
+func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encoding, flags flags) error {
+	output, err := encoder.UnmarshalJSONBytes([]byte(jqOutput))
 	if err != nil {
 		return fmt.Errorf("failed to encode jq program output as %s: %s", flags.outputFormat, err)
 	}
@@ -431,72 +434,55 @@ func printJV(outputWriter io.Writer, jv *jq.Jv, encoder formats.Encoding, flags 
 	return nil
 }
 
-func execJQProgram(program string, jsonBytes []byte, flags flags) ([]*jq.Jv, error) {
-	libjq, err := jq.New()
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize libjq: %s", err)
-	}
-	defer libjq.Close()
-
-	var inputJv *jq.Jv
+func determineArgsAndInput(jsonBytes []byte, flags flags) (args, input interface{}, err error) {
 	if flags.provideNull {
-		inputJv = jq.JvNull()
+		input = nil
 	} else {
-		inputJv, err = jq.JvFromJSONBytes(jsonBytes)
+		err := json.Unmarshal(jsonBytes, &input)
 		if err != nil {
-			return nil, fmt.Errorf("unable to convert to json value from bytes: %s", err)
+			return nil, nil, fmt.Errorf("unable to decode to JSON input: %s", err)
 		}
 	}
 
-	programArgs := jq.JvObject()
-	positionalArgsArray := jq.JvArray()
-	namedArgsObj := jq.JvObject()
-
-	for _, value := range flags.args {
-		positionalArgsArray = positionalArgsArray.ArrayAppend(jq.JvFromString(value))
+	var positionalArgsArray []interface{}
+	for _, arg := range flags.args {
+		positionalArgsArray = append(positionalArgsArray, arg)
 	}
+
 	for _, value := range flags.jsonargs {
-		jsonObj, err := jq.JvFromJSONBytes(value)
+		var i interface{}
+		err := json.Unmarshal(value, &i)
 		if err != nil {
-			return nil, fmt.Errorf("unable to convert json value to jq object: %v", err)
+			return nil, nil, fmt.Errorf("unable to decode JSON arg: %v", err)
 		}
-		positionalArgsArray = positionalArgsArray.ArrayAppend(jsonObj)
+		positionalArgsArray = append(positionalArgsArray, i)
 	}
+
+	programArgs := make(map[string]interface{}, 0)
+	namedArgs := make(map[string]interface{}, 0)
 
 	for key, value := range flags.kwargs {
-		strValue := string(value)
-		programArgs = programArgs.ObjectSet(jq.JvFromString(key), jq.JvFromString(strValue))
-		namedArgsObj = namedArgsObj.ObjectSet(jq.JvFromString(key), jq.JvFromString(strValue))
+		programArgs[key] = string(value)
+		namedArgs[key] = string(value)
 	}
 
 	for key, jsonValue := range flags.jsonkwargs {
-		jsonObj, err := jq.JvFromJSONBytes(jsonValue)
+		var i interface{}
+		err := json.Unmarshal(jsonValue, &i)
 		if err != nil {
-			return nil, fmt.Errorf("unable to convert json value to jq object")
+			return nil, nil, fmt.Errorf("unable to decode JSON kwarg: %s", err)
 		}
-		programArgs = programArgs.ObjectSet(jq.JvFromString(key), jsonObj)
-		namedArgsObj = namedArgsObj.ObjectSet(jq.JvFromString(key), jsonObj)
+
+		programArgs[key] = i
+		namedArgs[key] = i
 	}
 
-	combinedArgs := jq.JvObject()
-	combinedArgs = combinedArgs.ObjectSet(jq.JvFromString("positional"), positionalArgsArray)
-	combinedArgs = combinedArgs.ObjectSet(jq.JvFromString("named"), namedArgsObj)
-
-	programArgs = programArgs.ObjectSet(jq.JvFromString("ARGS"), combinedArgs)
-
-	errs := libjq.Compile(program, programArgs.Copy())
-	for _, err := range errs {
-		if err != nil {
-			return nil, fmt.Errorf("failed to compile jq program: %s", err)
-		}
+	programArgs["ARGS"] = map[string]interface{}{
+		"positional": positionalArgsArray,
+		"named":      namedArgs,
 	}
 
-	resultJvs, err := libjq.Execute(inputJv)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute jq program: %s", err)
-	}
-
-	return resultJvs, nil
+	return programArgs, input, nil
 }
 
 func determineDecoder(inputFormat string, fileInfo *fileInfo) (formats.Encoding, error) {
