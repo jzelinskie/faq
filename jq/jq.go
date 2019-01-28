@@ -175,19 +175,19 @@ func (jq *Jq) Start(program string, args *Jv) (in chan<- *Jv, out <-chan *Jv, er
 
 	// Before setting up any of the global error handling state, lets check that
 	// args is of the right type!
-	if args.Kind() != JvKindArray {
-		go func() {
-			// Take ownership of the inputs
-			for jv := range cIn {
-				jv.Free()
-			}
-			cErr <- fmt.Errorf("`args` parameter is of type %s not array", args.Kind().String())
-			args.Free()
-			close(cOut)
-			close(cErr)
-		}()
-		return
-	}
+	// if args.Kind() != JvKindArray {
+	// 	go func() {
+	// 		// Take ownership of the inputs
+	// 		for jv := range cIn {
+	// 			jv.Free()
+	// 		}
+	// 		cErr <- fmt.Errorf("`args` parameter is of type %s not array", args.Kind().String())
+	// 		args.Free()
+	// 		close(cOut)
+	// 		close(cErr)
+	// 	}()
+	// 	return
+	// }
 
 	if jq.errorStoreID != 0 {
 		// We might have called Compile
@@ -272,10 +272,10 @@ func (jq *Jq) Compile(prog string, args *Jv) (errs []error) {
 
 	// Before setting up any of the global error handling state, lets check that
 	// args is of the right type!
-	if args.Kind() != JvKindArray {
-		args.Free()
-		return []error{fmt.Errorf("`args` parameter is of type %s not array", args.Kind().String())}
-	}
+	// if args.Kind() != JvKindArray {
+	// 	args.Free()
+	// 	return []error{fmt.Errorf("`args` parameter is of type %s not array", args.Kind().String())}
+	// }
 
 	cErr := make(chan error)
 

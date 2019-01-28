@@ -1,6 +1,7 @@
 // this file contains code from https://github.com/ghodss/yaml/tree/c7ce16629ff4cd059ed96ed06419dd3856fd3577
 // it contains convertToJSONableObject from yaml.go and all of fields.go
 
+// Package formats contains code for dealing with formats isomorphic with JSON.
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -682,6 +683,4 @@ func convertToJSONableObject(yamlObj interface{}, jsonTarget *reflect.Value) (in
 		}
 		return yamlObj, nil
 	}
-
-	return nil, nil
 }
