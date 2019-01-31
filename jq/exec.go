@@ -18,7 +18,6 @@ import (
 	"errors"
 	"math/rand"
 	"reflect"
-	"sync"
 	"unsafe"
 )
 
@@ -157,10 +156,9 @@ func jvNumber(i interface{}) C.jv {
 
 var (
 	// libjq uses callbacks for error handling.
-	// This map safely stores errors under a key for a particular call.
+	// This map stores errors under a key for a particular call.
 	// See https://github.com/golang/go/wiki/cgo#function-variables
-	callbackErrors  = make(map[uint64]chan error)
-	callbackErrorsM sync.RWMutex
+	callbackErrors = make(map[uint64][]error)
 )
 
 func errorFromJV(jv C.jv) error {
@@ -175,15 +173,12 @@ func errorFromJV(jv C.jv) error {
 
 //export goJQErrorHandler
 func goJQErrorHandler(id uint64, jv C.jv) {
-	callbackErrorsM.Lock()
-	defer callbackErrorsM.Unlock()
-
 	err := errorFromJV(jv)
 	if err == nil {
-		return
+		panic("callback for nil error")
 	}
 
-	callbackErrors[id] <- err
+	callbackErrors[id] = append(callbackErrors[id], err)
 }
 
 // Exec compiles a JQ program with the provided args and executes it with the
@@ -264,31 +259,12 @@ func collectErrors(state *C.struct_jq_state, fn func()) []error {
 	C.register_jq_error_cb(state, C.ulonglong(callbackKey))
 	defer C.set_jq_error_cb_default(state)
 
-	errChan := make(chan error)
-	callbackErrorsM.Lock()
-	callbackErrors[callbackKey] = errChan
-	callbackErrorsM.Unlock()
+	callbackErrors[callbackKey] = nil
+	defer delete(callbackErrors, callbackKey)
 
-	defer func() {
-		callbackErrorsM.Lock()
-		delete(callbackErrors, callbackKey)
-		callbackErrorsM.Unlock()
-	}()
+	fn()
 
-	go func() {
-		fn()
-		errChan <- nil
-	}()
-
-	errs := make([]error, 0)
-	for err := range errChan {
-		if err == nil {
-			break
-		}
-		errs = append(errs, err)
-	}
-
-	return errs
+	return callbackErrors[callbackKey]
 }
 
 // ErrWrongType is returned from functions when an assertion about the type of
