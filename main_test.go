@@ -50,14 +50,13 @@ func TestRunFaq(t *testing.T) {
 {
 }
 {
-   "bar": 2,
    "foo": true
 }
 `,
 			},
 			expectedOutput: `{}
 {}
-{"bar":2,"foo":true}
+{"foo":true}
 `,
 			flags: flags{
 				inputFormat:  "json",
