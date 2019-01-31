@@ -13,12 +13,13 @@ import (
 	"strings"
 
 	"github.com/Azure/draft/pkg/linguist"
-	"github.com/jzelinskie/faq/formats"
-	"github.com/jzelinskie/faq/jq"
-	"github.com/jzelinskie/faq/pkg/flagutil"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
+
+	"github.com/jzelinskie/faq/formats"
+	"github.com/jzelinskie/faq/pkg/flagutil"
+	"github.com/jzelinskie/faq/pkg/jq"
 )
 
 var (
