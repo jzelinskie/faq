@@ -75,10 +75,7 @@ How do you pronounce "faq"? Fuck you.
 
 	_ = rootCmd.Flags().MarkHidden("debug")
 
-	err := rootCmd.Execute()
-	if err != nil {
-		fmt.Printf("error executing command: %s\n", err)
-	}
+	rootCmd.Execute()
 }
 
 type flags struct {
