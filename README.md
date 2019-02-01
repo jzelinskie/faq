@@ -8,7 +8,7 @@
 
 **Note**: The `master` branch may be in an *unstable or even broken state* during development. Please use [releases](https://github.com/jzelinskie/faq/releases) instead of the `master` branch in order to get stable binaries.
 
-faq is a tool intended to be a drop in replacement for "jq", but supports additional formats.
+faq is a tool intended to be a more flexible "jq", supporting additional formats.
 The additional formats are converted into JSON and processed with libjq.
 
 Supported formats:
@@ -18,9 +18,6 @@ Supported formats:
 - TOML
 - XML
 - YAML
-
-$FAQ_FORMATTER can be set to terminal, terminal16m, json, tokens, html.
-$FAQ_STYLE can be set to any of the following themes: https://xyproto.github.io/splash/docs/
 
 How do you pronounce "faq"? Fuck you.
 
@@ -32,6 +29,7 @@ For example usage, read [the examples doc].
 
 faq is still under heavy development and has only unstable binary releases.
 Behavior such as command-line flags may change causing shell scripts using faq to break after upgrading.
+jq programs are stable and should be considered a bug if it does not match jq behavior.
 
 ### Linux
 
@@ -50,22 +48,17 @@ brew install faq
 ## Development
 
 In order to compile the project, the [latest stable version of Go] and knowledge of a [working Go environment] are required.
-A modern version of [jq] that includes the libjq header files, must also be installed on the system.
-Reproducible builds are handled by using [dep] to vendor dependencies.
+A version of [jq] greater than 1.6-rc2 that includes the libjq header files must also be installed on the system.
 
 ```sh
-mkdir faq && export GOPATH=$PWD/faq
-git clone git@github.com:jzelinskie/faq.git $GOPATH/src/github.com/jzelinskie/faq
-cd $GOPATH/src/github.com/jzelinskie/faq
-dep ensure
-go install github.com/jzelinskie/faq
-$GOPATH/bin/faq --help
+git clone git@github.com:jzelinskie/faq.git
+cd faq
+GO111MODULE=on go build .
 ```
 
 [latest stable version of Go]: https://golang.org/dl
 [working Go environment]: https://golang.org/doc/code.html
 [jq]: https://stedolan.github.io/jq
-[dep]: https://github.com/golang/dep
 
 ## License
 
