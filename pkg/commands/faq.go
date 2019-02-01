@@ -90,12 +90,12 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
 		fmt.Println(version.Version)
 		return nil
 	}
+	isTTY := terminal.IsTerminal(int(os.Stdin.Fd()))
 
-	if runtime.GOOS == "windows" {
+	// If stdout isn't an interactive tty, or we're on windows then default to monochrome.
+	if !isTTY || runtime.GOOS == "windows" {
 		flags.Monochrome = true
 	}
-
-	isTTY := terminal.IsTerminal(int(os.Stdin.Fd()))
 
 	// Check to see execution is in an interactive terminal and set the args
 	// and flags as such.

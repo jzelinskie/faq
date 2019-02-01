@@ -7,13 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
 
 	"github.com/Azure/draft/pkg/linguist"
-	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/jzelinskie/faq/pkg/formats"
 	"github.com/jzelinskie/faq/pkg/jq"
@@ -44,11 +42,6 @@ var errInvalidOutputFormat = errors.New("invalid output format")
 // specified jq program against the files provided, writing results to
 // outputWriter.
 func RunFaq(outputWriter io.Writer, files []File, program string, flags Flags) error {
-	// If stdout isn't an interactive tty, then default to monochrome.
-	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
-		flags.Monochrome = true
-	}
-
 	if flags.ProvideNull {
 		encoder, ok := formats.ByName(flags.OutputFormat)
 		if !ok {
