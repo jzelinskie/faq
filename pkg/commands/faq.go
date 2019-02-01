@@ -30,9 +30,9 @@ func NewFaqCommand() *cobra.Command {
 	var flags faq.Flags
 
 	stringKwargsFlag := flagutil.NewKwargStringFlag(&flags.Kwargs)
-	jsonKwargsFlag := flagutil.NewKwargStringFlag(&flags.Jsonkwargs)
+	jsonKwargsFlag := flagutil.NewKwargJSONFlag(&flags.Jsonkwargs)
 	stringPositionalArgsFlag := flagutil.NewPositionalArgStringFlag(&flags.Args)
-	jsonPositionalArgsFlag := flagutil.NewPositionalArgBytesFlag(&flags.Jsonargs)
+	jsonPositionalArgsFlag := flagutil.NewPositionalArgJSONFlag(&flags.Jsonargs)
 
 	var rootCmd = &cobra.Command{
 		Use:   "faq [flags] [filter string] [files...]",

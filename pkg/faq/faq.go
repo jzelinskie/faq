@@ -32,9 +32,9 @@ type Flags struct {
 	Slurp        bool
 	ProvideNull  bool
 	Args         []string
-	Jsonargs     [][]byte
-	Kwargs       map[string][]byte
-	Jsonkwargs   map[string][]byte
+	Jsonargs     []interface{}
+	Kwargs       map[string]string
+	Jsonkwargs   map[string]interface{}
 	PrintVersion bool
 }
 
@@ -231,7 +231,8 @@ func runJQ(outputWriter io.Writer, program string, input []byte, encoder formats
 		input = []byte("null")
 	}
 
-	args, err := parseArgs(input, flags)
+	inputArgs := programArguments{flags.Args, flags.Jsonargs, flags.Kwargs, flags.Jsonkwargs}
+	args, err := parseArgs(input, inputArgs)
 	if err != nil {
 		return err
 	}
@@ -280,38 +281,29 @@ func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encodin
 	return nil
 }
 
-func parseArgs(jsonBytes []byte, flags Flags) ([]byte, error) {
+type programArguments struct {
+	Args       []string
+	Jsonargs   []interface{}
+	Kwargs     map[string]string
+	Jsonkwargs map[string]interface{}
+}
+
+func parseArgs(jsonBytes []byte, jqArgs programArguments) ([]byte, error) {
 	var positionalArgsArray []interface{}
-	for _, arg := range flags.Args {
-		positionalArgsArray = append(positionalArgsArray, arg)
+	programArgs := make(map[string]interface{})
+	namedArgs := make(map[string]interface{})
+
+	for _, value := range jqArgs.Args {
+		positionalArgsArray = append(positionalArgsArray, value)
 	}
-
-	for _, value := range flags.Jsonargs {
-		var i interface{}
-		err := json.Unmarshal(value, &i)
-		if err != nil {
-			return nil, fmt.Errorf("unable to decode JSON arg: %v", err)
-		}
-		positionalArgsArray = append(positionalArgsArray, i)
+	positionalArgsArray = append(positionalArgsArray, jqArgs.Jsonargs...)
+	for key, value := range jqArgs.Kwargs {
+		programArgs[key] = value
+		namedArgs[key] = value
 	}
-
-	programArgs := make(map[string]interface{}, 0)
-	namedArgs := make(map[string]interface{}, 0)
-
-	for key, value := range flags.Kwargs {
-		programArgs[key] = string(value)
-		namedArgs[key] = string(value)
-	}
-
-	for key, jsonValue := range flags.Jsonkwargs {
-		var i interface{}
-		err := json.Unmarshal(jsonValue, &i)
-		if err != nil {
-			return nil, fmt.Errorf("unable to decode JSON kwarg: %s", err)
-		}
-
-		programArgs[key] = i
-		namedArgs[key] = i
+	for key, value := range jqArgs.Jsonkwargs {
+		programArgs[key] = value
+		namedArgs[key] = value
 	}
 
 	programArgs["ARGS"] = map[string]interface{}{
