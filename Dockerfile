@@ -1,4 +1,4 @@
-FROM quay.io/jzelinskie/golang:1.12rc2-alpine-edge
+FROM quay.io/jzelinskie/golang:1.12rc2-alpine-edge AS build
 RUN apk add --no-cache git make jq-dev gcc libc-dev oniguruma-dev bash
 
 RUN go get -u github.com/golang/dep/cmd/...
@@ -12,4 +12,6 @@ ENV GO111MODULE=on
 RUN make FAQ_LINK_STATIC=true
 RUN make install
 
-ENTRYPOINT ["/usr/local/bin/faq"]
+FROM scratch
+COPY --from=build /usr/local/bin/faq /faq
+ENTRYPOINT ["/faq"]
