@@ -110,14 +110,13 @@ func jvInterface(i interface{}) C.jv {
 
 func jvMap(val reflect.Value) C.jv {
 	jvObj := C.jv_object()
-
 	for _, key := range val.MapKeys() {
 		// These allocations are freed when the whole object is freed.
 		keyJv := jvString(key.String())
-		valJv := jvInterface(val.MapIndex(key).Interface())
-		C.jv_object_set(jvObj, keyJv, valJv)
-	}
+		valueJv := jvInterface(val.MapIndex(key).Interface())
 
+		C.jv_object_set(jvObj, keyJv, valueJv)
+	}
 	return jvObj
 }
 
@@ -161,7 +160,7 @@ var (
 	callbackErrors = make(map[uint64][]error)
 )
 
-func errorFromJV(jv C.jv) error {
+func errorFromJv(jv C.jv) error {
 	jv = C.jq_format_error(jv)
 	defer C.jv_free(jv)
 
@@ -173,7 +172,7 @@ func errorFromJV(jv C.jv) error {
 
 //export goJQErrorHandler
 func goJQErrorHandler(id uint64, jv C.jv) {
-	err := errorFromJV(jv)
+	err := errorFromJv(jv)
 	if err == nil {
 		panic("callback for nil error")
 	}
@@ -184,9 +183,10 @@ func goJQErrorHandler(id uint64, jv C.jv) {
 // Exec compiles a JQ program with the provided args and executes it with the
 // provided input.
 //
-// If the args parameter is not nil, a slice/array, or map[string]interface{},
-// then ErrWrongType is returned.
-func Exec(program string, args, input interface{}) ([]string, error) {
+// The args and input parameters are expected to be JSON bytes.
+// If the args parameter is not null, an array, or an object, then ErrWrongType
+// is returned.
+func Exec(program string, args, input []byte) ([]string, error) {
 	state, err := C.jq_init()
 	if err != nil {
 		return nil, err
@@ -195,13 +195,19 @@ func Exec(program string, args, input interface{}) ([]string, error) {
 	}
 	defer C.jq_teardown(&state)
 
-	argsJV := jvInterface(args)
-	defer C.jv_free(argsJV)
+	argsJv := C.jv_parse((*C.char)(unsafe.Pointer(&args[0])))
+	if C.jv_is_valid(argsJv) == 0 {
+		return nil, errorFromJv(argsJv)
+	}
+	defer C.jv_free(argsJv)
 
-	inputJV := jvInterface(input)
-	defer C.jv_free(inputJV)
+	inputJv := C.jv_parse((*C.char)(unsafe.Pointer(&input[0])))
+	if C.jv_is_valid(inputJv) == 0 {
+		return nil, errorFromJv(inputJv)
+	}
+	defer C.jv_free(inputJv)
 
-	return executeProgram(state, program, argsJV, inputJV)
+	return executeProgram(state, program, argsJv, inputJv)
 }
 
 // executeProgram compiles and executes a jq program with the provided

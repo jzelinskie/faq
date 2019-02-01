@@ -383,8 +383,12 @@ func openFile(path string, flags flags) (*fileInfo, error) {
 	return &fileInfo{path: path, reader: file}, nil
 }
 
-func runJQ(outputWriter io.Writer, program string, data []byte, encoder formats.Encoding, flags flags) error {
-	args, input, err := determineArgsAndInput(data, flags)
+func runJQ(outputWriter io.Writer, program string, input []byte, encoder formats.Encoding, flags flags) error {
+	if flags.provideNull {
+		input = nil
+	}
+
+	args, err := parseArgs(input, flags)
 	if err != nil {
 		return err
 	}
@@ -393,6 +397,7 @@ func runJQ(outputWriter io.Writer, program string, data []byte, encoder formats.
 	if err != nil {
 		return err
 	}
+
 	for _, output := range outputs {
 		err := printValue(output, outputWriter, encoder, flags)
 		if err != nil {
@@ -432,16 +437,7 @@ func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encodin
 	return nil
 }
 
-func determineArgsAndInput(jsonBytes []byte, flags flags) (args, input interface{}, err error) {
-	if flags.provideNull {
-		input = nil
-	} else {
-		err := json.Unmarshal(jsonBytes, &input)
-		if err != nil {
-			return nil, nil, fmt.Errorf("unable to decode to JSON input: %s", err)
-		}
-	}
-
+func parseArgs(jsonBytes []byte, flags flags) ([]byte, error) {
 	var positionalArgsArray []interface{}
 	for _, arg := range flags.args {
 		positionalArgsArray = append(positionalArgsArray, arg)
@@ -451,7 +447,7 @@ func determineArgsAndInput(jsonBytes []byte, flags flags) (args, input interface
 		var i interface{}
 		err := json.Unmarshal(value, &i)
 		if err != nil {
-			return nil, nil, fmt.Errorf("unable to decode JSON arg: %v", err)
+			return nil, fmt.Errorf("unable to decode JSON arg: %v", err)
 		}
 		positionalArgsArray = append(positionalArgsArray, i)
 	}
@@ -468,7 +464,7 @@ func determineArgsAndInput(jsonBytes []byte, flags flags) (args, input interface
 		var i interface{}
 		err := json.Unmarshal(jsonValue, &i)
 		if err != nil {
-			return nil, nil, fmt.Errorf("unable to decode JSON kwarg: %s", err)
+			return nil, fmt.Errorf("unable to decode JSON kwarg: %s", err)
 		}
 
 		programArgs[key] = i
@@ -480,7 +476,7 @@ func determineArgsAndInput(jsonBytes []byte, flags flags) (args, input interface
 		"named":      namedArgs,
 	}
 
-	return programArgs, input, nil
+	return json.Marshal(programArgs)
 }
 
 func determineDecoder(inputFormat string, fileInfo *fileInfo) (formats.Encoding, error) {
