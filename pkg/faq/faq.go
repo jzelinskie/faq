@@ -116,7 +116,7 @@ func convertInputAndRun(outputWriter io.Writer, decoder formats.Encoding, fileBy
 				return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
 			}
 
-			err = runJQ(outputWriter, program, data, encoder, flags)
+			err = runJQ(outputWriter, program, &data, encoder, flags)
 			if err != nil {
 				return err
 			}
@@ -129,7 +129,7 @@ func convertInputAndRun(outputWriter io.Writer, decoder formats.Encoding, fileBy
 		return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
 	}
 
-	err = runJQ(outputWriter, program, data, encoder, flags)
+	err = runJQ(outputWriter, program, &data, encoder, flags)
 	if err != nil {
 		return err
 	}
@@ -210,7 +210,7 @@ func slurpFiles(outputWriter io.Writer, files []File, program string, encoder fo
 		return err
 	}
 
-	err = runJQ(outputWriter, program, data, encoder, flags)
+	err = runJQ(outputWriter, program, &data, encoder, flags)
 	if err != nil {
 		return err
 	}
@@ -218,18 +218,19 @@ func slurpFiles(outputWriter io.Writer, files []File, program string, encoder fo
 	return nil
 }
 
-func runJQ(outputWriter io.Writer, program string, input []byte, encoder formats.Encoding, flags Flags) error {
-	if flags.ProvideNull {
-		input = []byte("null")
+func runJQ(outputWriter io.Writer, program string, input *[]byte, encoder formats.Encoding, flags Flags) error {
+	if input == nil {
+		input = new([]byte)
+		*input = []byte("null")
 	}
 
 	inputArgs := programArguments{flags.Args, flags.Jsonargs, flags.Kwargs, flags.Jsonkwargs}
-	args, err := parseArgs(input, inputArgs)
+	args, err := parseArgs(*input, inputArgs)
 	if err != nil {
 		return err
 	}
 
-	outputs, err := jq.Exec(program, args, input)
+	outputs, err := jq.Exec(program, args, *input)
 	if err != nil {
 		return err
 	}
