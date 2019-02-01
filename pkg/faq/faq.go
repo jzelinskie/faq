@@ -13,7 +13,7 @@ import (
 	"github.com/Azure/draft/pkg/linguist"
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/jzelinskie/faq/formats"
+	"github.com/jzelinskie/faq/pkg/formats"
 	"github.com/jzelinskie/faq/pkg/jq"
 )
 
