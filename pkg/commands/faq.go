@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"runtime"
 
@@ -62,6 +63,7 @@ How do you pronounce "faq"? Fuck you.
 	rootCmd.Flags().BoolVar(&flags.Debug, "debug", false, "enable debug logging")
 	rootCmd.Flags().StringVarP(&flags.InputFormat, "input-format", "f", "auto", "input format")
 	rootCmd.Flags().StringVarP(&flags.OutputFormat, "output-format", "o", "auto", "output format")
+	rootCmd.Flags().StringVarP(&flags.ProgramFile, "program-file", "F", "", "If specified, read the file provided as the jq program for faq.")
 	rootCmd.Flags().BoolVarP(&flags.Raw, "raw-output", "r", false, "output raw strings, not JSON texts")
 	rootCmd.Flags().BoolVarP(&flags.Color, "color-output", "c", true, "colorize the output")
 	rootCmd.Flags().BoolVarP(&flags.Monochrome, "monochrome-output", "m", false, "monochrome (don't colorize the output)")
@@ -92,50 +94,48 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
 		flags.Monochrome = true
 	}
 
+	isTTY := terminal.IsTerminal(int(os.Stdin.Fd()))
+
 	// Check to see execution is in an interactive terminal and set the args
 	// and flags as such.
-	program := ""
-	paths := []string{}
+	var (
+		program string
+		paths   []string
+	)
 
-	// Determine the jq program and arguments if a unix being used or not.
-	if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-		switch {
-		case flags.ProvideNull && len(args) == 0:
-			program = "."
-		case flags.ProvideNull && len(args) == 1:
-			program = args[0]
-		case len(args) == 0:
-			program = "."
-			paths = []string{"/dev/stdin"}
-		case len(args) == 1:
-			program = args[0]
-			paths = []string{"/dev/stdin"}
-		case len(args) > 1:
-			program = args[0]
-			paths = args[1:]
-		default:
-			return fmt.Errorf("not enough arguments provided")
+	var fileInfos []faq.File
+	if flags.ProgramFile != "" {
+		programBytes, err := ioutil.ReadFile(flags.ProgramFile)
+		if err != nil {
+			return fmt.Errorf("unable to read --program-file %s: err %v", flags.ProgramFile, err)
 		}
-	} else {
-		switch {
-		case flags.ProvideNull && len(args) >= 1:
-			program = args[0]
-		case !flags.ProvideNull && len(args) >= 2:
-			program = args[0]
-			paths = args[1:]
-		default:
-			return fmt.Errorf("not enough arguments provided")
-		}
+		program = string(programBytes)
+	} else if len(args) == 0 {
+		program = "."
+	} else if len(args) == 1 {
+		program = args[0]
+		args = args[1:]
 	}
 
-	// Verify all files exist, and open them.
-	var fileInfos []faq.File
-	for _, path := range paths {
-		fileInfo, err := faq.OpenFile(path, flags)
-		if err != nil {
-			return err
+	if flags.ProvideNull {
+		paths = nil
+	} else {
+		if !isTTY && len(args) == 0 {
+			paths = []string{"/dev/stdin"}
+		} else if len(args) != 0 {
+			paths = args
+		} else {
+			return fmt.Errorf("not enough arguments provided")
 		}
-		fileInfos = append(fileInfos, fileInfo)
+
+		// Verify all files exist, and open them.
+		for _, path := range paths {
+			fileInfo, err := faq.OpenFile(path, flags)
+			if err != nil {
+				return err
+			}
+			fileInfos = append(fileInfos, fileInfo)
+		}
 	}
 
 	return faq.RunFaq(os.Stdout, fileInfos, program, flags)
