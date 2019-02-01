@@ -21,23 +21,15 @@ type KwargStringFlag struct {
 }
 
 // NewKwargStringFlag returns an initialized KwargStringFlag
-func NewKwargStringFlag() *KwargStringFlag {
+func NewKwargStringFlag(p *map[string][]byte) *KwargStringFlag {
 	return &KwargStringFlag{
-		value: new(map[string][]byte),
+		value: p,
 	}
-}
-
-// AsMap returns a map of key value pairs passed via the flag
-func (f *KwargStringFlag) AsMap() map[string][]byte {
-	if f.value != nil {
-		return *f.value
-	}
-	return nil
 }
 
 // String implements pflag.Value
 func (f *KwargStringFlag) String() string {
-	return fmt.Sprintf("%v", f.AsMap())
+	return fmt.Sprintf("%v", *f.value)
 }
 
 // Set implements pflag.Value
@@ -80,35 +72,66 @@ func parseKeyValuePair(input string) (*pair, error) {
 	return &pair{key, value}, nil
 }
 
-// PositionalArgStringFlag implements pflag.Value that accepts a single string value
+// PositionalArgBytesFlag implements pflag.Value that accepts a single string value
 // and stores the value in a list of values. The flag can be specified multiple
 // times to add more items the list of values.
-type PositionalArgStringFlag struct {
-	value [][]byte
+type PositionalArgBytesFlag struct {
+	value *[][]byte
 }
 
-// NewPositionalArgStringFlag returns an initialized PositionalArgStringFlag
-func NewPositionalArgStringFlag() *PositionalArgStringFlag {
-	return &PositionalArgStringFlag{}
-}
-
-// AsSlice returns a slice of values passed via the flag
-func (f *PositionalArgStringFlag) AsSlice() [][]byte {
-	return f.value
+// NewPositionalArgBytesFlag returns an initialized PositionalArgBytesFlag
+func NewPositionalArgBytesFlag(p *[][]byte) *PositionalArgBytesFlag {
+	return &PositionalArgBytesFlag{
+		value: p,
+	}
 }
 
 // String implements pflag.Value
-func (f *PositionalArgStringFlag) String() string {
+func (f *PositionalArgBytesFlag) String() string {
 	var values []string
-	for _, value := range f.value {
+	for _, value := range *f.value {
 		values = append(values, string(value))
 	}
 	return fmt.Sprintf("%q", values)
 }
 
 // Set implements pflag.Value
+func (f *PositionalArgBytesFlag) Set(input string) error {
+	*f.value = append(*f.value, []byte(input))
+	return nil
+}
+
+// Type implements pflag.Value
+func (f *PositionalArgBytesFlag) Type() string {
+	return "positionalArg"
+}
+
+// PositionalArgStringFlag implements pflag.Value that accepts a single string value
+// and stores the value in a list of values. The flag can be specified multiple
+// times to add more items the list of values.
+type PositionalArgStringFlag struct {
+	value *[]string
+}
+
+// NewPositionalArgStringFlag returns an initialized PositionalArgStringFlag
+func NewPositionalArgStringFlag(p *[]string) *PositionalArgStringFlag {
+	return &PositionalArgStringFlag{
+		value: p,
+	}
+}
+
+// String implements pflag.Value
+func (f *PositionalArgStringFlag) String() string {
+	var values []string
+	for _, value := range *f.value {
+		values = append(values, value)
+	}
+	return fmt.Sprintf("%q", values)
+}
+
+// Set implements pflag.Value
 func (f *PositionalArgStringFlag) Set(input string) error {
-	f.value = append(f.value, []byte(input))
+	*f.value = append(*f.value, input)
 	return nil
 }
 
