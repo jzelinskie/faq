@@ -385,7 +385,7 @@ func openFile(path string, flags flags) (*fileInfo, error) {
 
 func runJQ(outputWriter io.Writer, program string, input []byte, encoder formats.Encoding, flags flags) error {
 	if flags.provideNull {
-		input = nil
+		input = []byte("null")
 	}
 
 	args, err := parseArgs(input, flags)
