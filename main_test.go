@@ -226,15 +226,14 @@ bar: false
 {}
 {}
 {
-	"bar": 2,
-	"foo": true
+	"bar": 2
 }
 `,
 				``,   // empty files are ignored
 				`""`, // an empty string is valid
 				`true`,
 			},
-			expectedOutput: `[{},{},{"bar":2,"foo":true},"",true]` + "\n",
+			expectedOutput: `[{},{},{"bar":2},"",true]` + "\n",
 			flags: flags{
 				inputFormat:  "json",
 				outputFormat: "json",
