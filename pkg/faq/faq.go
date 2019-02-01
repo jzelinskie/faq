@@ -22,6 +22,7 @@ type Flags struct {
 	Debug        bool
 	InputFormat  string
 	OutputFormat string
+	ProgramFile  string
 	Raw          bool
 	Color        bool
 	Monochrome   bool
