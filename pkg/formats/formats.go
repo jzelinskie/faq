@@ -38,3 +38,13 @@ func ByName(name string) (Encoding, bool) {
 	format, ok := nameToFormat[strings.ToLower(name)]
 	return format, ok
 }
+
+// ToName maps an encoder to a registered encoding name.
+func ToName(format Encoding) string {
+	for name, f := range nameToFormat {
+		if f == format {
+			return name
+		}
+	}
+	return ""
+}

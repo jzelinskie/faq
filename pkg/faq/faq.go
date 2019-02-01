@@ -235,8 +235,13 @@ func runJQ(outputWriter io.Writer, program string, input *[]byte, encoder format
 		return err
 	}
 
+	outputConf := outputConfig{
+		Raw:     flags.Raw,
+		Compact: !flags.Pretty,
+		Color:   flags.Color && !flags.Monochrome,
+	}
 	for _, output := range outputs {
-		err := printValue(output, outputWriter, encoder, flags)
+		err := printValue(output, outputWriter, encoder, outputConf)
 		if err != nil {
 			return err
 		}
@@ -245,28 +250,36 @@ func runJQ(outputWriter io.Writer, program string, input *[]byte, encoder format
 	return nil
 }
 
-func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encoding, flags Flags) error {
+type outputConfig struct {
+	Raw     bool
+	Compact bool
+	Color   bool
+}
+
+func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encoding, conf outputConfig) error {
+	outputFormat := formats.ToName(encoder)
 	output, err := encoder.UnmarshalJSONBytes([]byte(jqOutput))
 	if err != nil {
-		return fmt.Errorf("failed to encode jq program output as %s: %s", flags.OutputFormat, err)
+		return fmt.Errorf("failed to encode jq program output as %s: %s", outputFormat, err)
 	}
 
-	if flags.Pretty {
-		output, err = encoder.PrettyPrint(output)
-		if err != nil {
-			return fmt.Errorf("failed to encode jq program output as pretty %s: %s", flags.OutputFormat, err)
+	if !conf.Raw {
+		if !conf.Compact {
+			output, err = encoder.PrettyPrint(output)
+			if err != nil {
+				return fmt.Errorf("failed to encode jq program output as pretty %s: %s", outputFormat, err)
+			}
 		}
-	}
-
-	if flags.Raw {
+		if conf.Color {
+			output, err = encoder.Color(output)
+			if err != nil {
+				return fmt.Errorf("failed to encode jq program output as color %s: %s", outputFormat, err)
+			}
+		}
+	} else {
 		output, err = encoder.Raw(output)
 		if err != nil {
-			return fmt.Errorf("failed to encode jq program output as raw %s: %s", flags.OutputFormat, err)
-		}
-	} else if flags.Color && !flags.Monochrome {
-		output, err = encoder.Color(output)
-		if err != nil {
-			return fmt.Errorf("failed to encode jq program output as color %s: %s", flags.OutputFormat, err)
+			return fmt.Errorf("failed to encode jq program output as raw %s: %s", outputFormat, err)
 		}
 	}
 
