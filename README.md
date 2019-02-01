@@ -53,7 +53,7 @@ A version of [jq] greater than 1.6-rc2 that includes the libjq header files must
 ```sh
 git clone git@github.com:jzelinskie/faq.git
 cd faq
-GO111MODULE=on go build .
+make
 ```
 
 [latest stable version of Go]: https://golang.org/dl
