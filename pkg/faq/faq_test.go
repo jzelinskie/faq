@@ -10,7 +10,7 @@ func TestRunFaq(t *testing.T) {
 		name              string
 		program           string
 		inputFileContents []string
-		flags             flags
+		flags             Flags
 		expectedOutput    string
 	}{
 		{
@@ -23,10 +23,10 @@ func TestRunFaq(t *testing.T) {
 			program:           ".",
 			inputFileContents: []string{},
 			expectedOutput:    "null\n",
-			flags: flags{
-				provideNull:  true,
-				inputFormat:  "json",
-				outputFormat: "json",
+			flags: Flags{
+				ProvideNull:  true,
+				InputFormat:  "json",
+				OutputFormat: "json",
 			},
 		},
 		{
@@ -36,9 +36,9 @@ func TestRunFaq(t *testing.T) {
 				`{}`,
 			},
 			expectedOutput: "{}\n",
-			flags: flags{
-				inputFormat:  "json",
-				outputFormat: "json",
+			flags: Flags{
+				InputFormat:  "json",
+				OutputFormat: "json",
 			},
 		},
 		{
@@ -48,9 +48,9 @@ func TestRunFaq(t *testing.T) {
 				"{}\n{}\n",
 			},
 			expectedOutput: "{}\n{}\n",
-			flags: flags{
-				inputFormat:  "json",
-				outputFormat: "json",
+			flags: Flags{
+				InputFormat:  "json",
+				OutputFormat: "json",
 			},
 		},
 		{
@@ -69,9 +69,9 @@ func TestRunFaq(t *testing.T) {
 {}
 {"foo":true}
 `,
-			flags: flags{
-				inputFormat:  "json",
-				outputFormat: "json",
+			flags: Flags{
+				InputFormat:  "json",
+				OutputFormat: "json",
 			},
 		},
 		{
@@ -81,9 +81,9 @@ func TestRunFaq(t *testing.T) {
 				`""`,
 			},
 			expectedOutput: `""` + "\n",
-			flags: flags{
-				inputFormat:  "json",
-				outputFormat: "json",
+			flags: Flags{
+				InputFormat:  "json",
+				OutputFormat: "json",
 			},
 		},
 		{
@@ -98,9 +98,9 @@ bar: false`,
 			expectedOutput: `{"foo":true}
 {"bar":false}
 `,
-			flags: flags{
-				inputFormat:  "yaml",
-				outputFormat: "json",
+			flags: Flags{
+				InputFormat:  "yaml",
+				OutputFormat: "json",
 			},
 		},
 		{
@@ -113,9 +113,9 @@ bar: false`,
 			},
 			expectedOutput: `null
 `,
-			flags: flags{
-				inputFormat:  "yaml",
-				outputFormat: "json",
+			flags: Flags{
+				InputFormat:  "yaml",
+				OutputFormat: "json",
 			},
 		},
 		{
@@ -129,9 +129,9 @@ bar: false`,
 `,
 			},
 			expectedOutput: "null\nnull\nnull\n",
-			flags: flags{
-				inputFormat:  "yaml",
-				outputFormat: "json",
+			flags: Flags{
+				InputFormat:  "yaml",
+				OutputFormat: "json",
 			},
 		},
 		{
@@ -156,9 +156,9 @@ bar: false
 			expectedOutput: `{"foo":true}
 {"bar":false}
 `,
-			flags: flags{
-				inputFormat:  "yaml",
-				outputFormat: "json",
+			flags: Flags{
+				InputFormat:  "yaml",
+				OutputFormat: "json",
 			},
 		},
 		{
@@ -168,9 +168,9 @@ bar: false
 				`true`,
 			},
 			expectedOutput: "true\n",
-			flags: flags{
-				inputFormat:  "json",
-				outputFormat: "json",
+			flags: Flags{
+				InputFormat:  "json",
+				OutputFormat: "json",
 			},
 		},
 		{
@@ -181,9 +181,9 @@ bar: false
 				`true`,
 			},
 			expectedOutput: "{}\ntrue\n",
-			flags: flags{
-				inputFormat:  "json",
-				outputFormat: "json",
+			flags: Flags{
+				InputFormat:  "json",
+				OutputFormat: "json",
 			},
 		},
 		{
@@ -193,10 +193,10 @@ bar: false
 				``,
 			},
 			expectedOutput: "[]\n",
-			flags: flags{
-				inputFormat:  "json",
-				outputFormat: "json",
-				slurp:        true,
+			flags: Flags{
+				InputFormat:  "json",
+				OutputFormat: "json",
+				Slurp:        true,
 			},
 		},
 		{
@@ -207,10 +207,10 @@ bar: false
 				``,
 			},
 			expectedOutput: "[]\n",
-			flags: flags{
-				inputFormat:  "json",
-				outputFormat: "json",
-				slurp:        true,
+			flags: Flags{
+				InputFormat:  "json",
+				OutputFormat: "json",
+				Slurp:        true,
 			},
 		},
 		{
@@ -223,10 +223,10 @@ bar: false
 				`true`,
 			},
 			expectedOutput: `[{},"",true]` + "\n",
-			flags: flags{
-				inputFormat:  "json",
-				outputFormat: "json",
-				slurp:        true,
+			flags: Flags{
+				InputFormat:  "json",
+				OutputFormat: "json",
+				Slurp:        true,
 			},
 		},
 		{
@@ -245,10 +245,10 @@ bar: false
 				`true`,
 			},
 			expectedOutput: `[{},{},{"bar":2},"",true]` + "\n",
-			flags: flags{
-				inputFormat:  "json",
-				outputFormat: "json",
-				slurp:        true,
+			flags: Flags{
+				InputFormat:  "json",
+				OutputFormat: "json",
+				Slurp:        true,
 			},
 		},
 		{
@@ -267,10 +267,10 @@ cats: dogs
 			},
 			expectedOutput: `[{"foo":true},{"bar":false},{"fizz":"buzz"},{"cats":"dogs"}]
 `,
-			flags: flags{
-				inputFormat:  "yaml",
-				outputFormat: "json",
-				slurp:        true,
+			flags: Flags{
+				InputFormat:  "yaml",
+				OutputFormat: "json",
+				Slurp:        true,
 			},
 		},
 	}
@@ -278,16 +278,16 @@ cats: dogs
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
-			var fileInfos []*fileInfo
+			var files []File
 			for i, fileContent := range testCase.inputFileContents {
-				fileInfos = append(fileInfos, &fileInfo{
+				files = append(files, &FileInfo{
 					path: "test-path-" + string(i),
 					read: true,
 					data: []byte(fileContent),
 				})
 			}
 			var outputBuf bytes.Buffer
-			err := runFaq(&outputBuf, fileInfos, testCase.program, testCase.flags)
+			err := RunFaq(&outputBuf, files, testCase.program, testCase.flags)
 			if err != nil {
 				t.Errorf("expected no err, got %#v", err)
 			}

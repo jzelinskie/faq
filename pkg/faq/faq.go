@@ -6,180 +6,48 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/Azure/draft/pkg/linguist"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/jzelinskie/faq/formats"
-	"github.com/jzelinskie/faq/pkg/flagutil"
 	"github.com/jzelinskie/faq/pkg/jq"
 )
 
-var (
-	version string
-)
-
-// ExecuteFaqCmd executes the faq commandline program
-func ExecuteFaqCmd() {
-	faqCmd := NewFaqCommand()
-	err := faqCmd.Execute()
-	if err != nil {
-		fmt.Printf("error executing %s: %v\n", faqCmd.Name(), err)
-		return
-	}
+// Flags are the configuration flags for faq
+type Flags struct {
+	Debug        bool
+	InputFormat  string
+	OutputFormat string
+	Raw          bool
+	Color        bool
+	Monochrome   bool
+	Pretty       bool
+	Slurp        bool
+	ProvideNull  bool
+	Args         []string
+	Jsonargs     [][]byte
+	Kwargs       map[string][]byte
+	Jsonkwargs   map[string][]byte
+	PrintVersion bool
 }
 
-// NewFaqCommand returns a cobra.Command that
-func NewFaqCommand() *cobra.Command {
-	var flags flags
-
-	stringKwargsFlag := flagutil.NewKwargStringFlag(&flags.kwargs)
-	jsonKwargsFlag := flagutil.NewKwargStringFlag(&flags.jsonkwargs)
-	stringPositionalArgsFlag := flagutil.NewPositionalArgStringFlag(&flags.args)
-	jsonPositionalArgsFlag := flagutil.NewPositionalArgBytesFlag(&flags.jsonargs)
-
-	var rootCmd = &cobra.Command{
-		Use:   "faq [flags] [filter string] [files...]",
-		Short: "format agnostic querier",
-		Long: `faq is a tool intended to be a more flexible "jq", supporting additional formats.
-The additional formats are converted into JSON and processed with libjq.
-
-Supported formats:
-- BSON
-- Bencode
-- JSON
-- TOML
-- XML
-- YAML
-
-$FAQ_FORMATTER can be set to terminal, terminal16m, json, tokens, html.
-$FAQ_STYLE can be set to any of the following themes:
-https://xyproto.github.io/splash/docs/
-
-How do you pronounce "faq"? Fuck you.
-`,
-		DisableFlagsInUseLine: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCmdFunc(cmd, args, flags)
-		},
-	}
-
-	rootCmd.Flags().BoolVar(&flags.debug, "debug", false, "enable debug logging")
-	rootCmd.Flags().StringVarP(&flags.inputFormat, "input-format", "f", "auto", "input format")
-	rootCmd.Flags().StringVarP(&flags.outputFormat, "output-format", "o", "auto", "output format")
-	rootCmd.Flags().BoolVarP(&flags.raw, "raw-output", "r", false, "output raw strings, not JSON texts")
-	rootCmd.Flags().BoolVarP(&flags.color, "color-output", "c", true, "colorize the output")
-	rootCmd.Flags().BoolVarP(&flags.monochrome, "monochrome-output", "m", false, "monochrome (don't colorize the output)")
-	rootCmd.Flags().BoolVarP(&flags.pretty, "pretty-output", "p", true, "pretty-printed output")
-	rootCmd.Flags().BoolVarP(&flags.slurp, "slurp", "s", false, "read (slurp) all inputs into an array; apply filter to it")
-	rootCmd.Flags().BoolVarP(&flags.provideNull, "null-input", "n", false, "use `null` as the single input value")
-	rootCmd.Flags().Var(stringPositionalArgsFlag, "args", `Takes a value and adds it to the position arguments list. Values are always strings. Positional arguments are available as $ARGS.positional[]. Specify --args multiple times to pass additional arguments.`)
-	rootCmd.Flags().Var(jsonPositionalArgsFlag, "jsonargs", `Takes a value and adds it to the position arguments list. Values are parsed as JSON values. Positional arguments are available as $ARGS.positional[]. Specify --jsonargs multiple times to pass additional arguments.`)
-	rootCmd.Flags().Var(stringKwargsFlag, "kwargs", `Takes a key=value pair, setting $key to <value>: --kwargs foo=bar sets $foo to "bar". Values are always strings. Named arguments are also available as $ARGS.named[]. Specify --kwargs multiple times to add more arguments.`)
-	rootCmd.Flags().Var(jsonKwargsFlag, "jsonkwargs", `Takes a key=value pair, setting $key to the JSON value of <value>: --kwargs foo={"fizz": "buzz"} sets $foo to the json object {"fizz": "buzz"}. Values are parsed as JSON values. Named arguments are also available as $ARGS.named[]. Specify --jsonkwargs multiple times to add more arguments.`)
-	rootCmd.Flags().BoolVarP(&flags.printVersion, "version", "v", false, "Print the version and exit.")
-
-	_ = rootCmd.Flags().MarkHidden("debug")
-	return rootCmd
-}
-
-type flags struct {
-	debug        bool
-	inputFormat  string
-	outputFormat string
-	raw          bool
-	color        bool
-	monochrome   bool
-	pretty       bool
-	slurp        bool
-	provideNull  bool
-	args         []string
-	jsonargs     [][]byte
-	kwargs       map[string][]byte
-	jsonkwargs   map[string][]byte
-	printVersion bool
-}
-
-func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
-	if flags.debug {
-		logrus.SetLevel(logrus.DebugLevel)
-	}
-
-	if flags.printVersion {
-		fmt.Println(version)
-		return nil
-	}
-
-	if runtime.GOOS == "windows" {
-		flags.monochrome = true
-	}
-
-	// Check to see execution is in an interactive terminal and set the args
-	// and flags as such.
-	program := ""
-	paths := []string{}
-
-	// Determine the jq program and arguments if a unix being used or not.
-	if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-		switch {
-		case flags.provideNull && len(args) == 0:
-			program = "."
-		case flags.provideNull && len(args) == 1:
-			program = args[0]
-		case len(args) == 0:
-			program = "."
-			paths = []string{"/dev/stdin"}
-		case len(args) == 1:
-			program = args[0]
-			paths = []string{"/dev/stdin"}
-		case len(args) > 1:
-			program = args[0]
-			paths = args[1:]
-		default:
-			return fmt.Errorf("not enough arguments provided")
-		}
-	} else {
-		switch {
-		case flags.provideNull && len(args) >= 1:
-			program = args[0]
-		case !flags.provideNull && len(args) >= 2:
-			program = args[0]
-			paths = args[1:]
-		default:
-			return fmt.Errorf("not enough arguments provided")
-		}
-	}
-
-	// Verify all files exist, and open them.
-	var fileInfos []*fileInfo
-	for _, path := range paths {
-		fileInfo, err := openFile(path, flags)
-		if err != nil {
-			return err
-		}
-		fileInfos = append(fileInfos, fileInfo)
-	}
-
-	return runFaq(os.Stdout, fileInfos, program, flags)
-}
-
-func runFaq(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags flags) error {
+// RunFaq takes a list of files, a jq program, and flags, and runs the
+// specified jq program against the files provided, writing results to
+// outputWriter.
+func RunFaq(outputWriter io.Writer, files []File, program string, flags Flags) error {
 	// If stdout isn't an interactive tty, then default to monochrome.
 	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
-		flags.monochrome = true
+		flags.Monochrome = true
 	}
 
-	if flags.provideNull {
-		encoder, ok := formatByName(flags.outputFormat)
+	if flags.ProvideNull {
+		encoder, ok := formatByName(flags.OutputFormat)
 		if !ok {
-			return fmt.Errorf("invalid --output-format %s", flags.outputFormat)
+			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}
 		err := runJQ(outputWriter, program, nil, encoder, flags)
 		if err != nil {
@@ -189,20 +57,20 @@ func runFaq(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags
 	}
 
 	// Handle each file path provided.
-	if flags.slurp {
-		if flags.outputFormat == "" {
+	if flags.Slurp {
+		if flags.OutputFormat == "" {
 			return fmt.Errorf("must specify --output-format when using --slurp")
 		}
-		encoder, ok := formatByName(flags.outputFormat)
+		encoder, ok := formatByName(flags.OutputFormat)
 		if !ok {
-			return fmt.Errorf("invalid --output-format %s", flags.outputFormat)
+			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}
-		err := slurpFiles(outputWriter, fileInfos, program, encoder, flags)
+		err := slurpFiles(outputWriter, files, program, encoder, flags)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := processFiles(outputWriter, fileInfos, program, flags)
+		err := processFiles(outputWriter, files, program, flags)
 		if err != nil {
 			return err
 		}
@@ -213,20 +81,20 @@ func runFaq(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags
 
 // processFiles takes a list of files, and for each, attempts to convert it
 // to a JSON value and runs the jq program against it
-func processFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string, flags flags) error {
-	for _, fileInfo := range fileInfos {
-		decoder, err := determineDecoder(flags.inputFormat, fileInfo)
+func processFiles(outputWriter io.Writer, files []File, program string, flags Flags) error {
+	for _, file := range files {
+		decoder, err := determineDecoder(flags.InputFormat, file)
 		if err != nil {
 			return err
 		}
 
-		fileBytes, err := fileInfo.GetContents()
+		fileBytes, err := file.Contents()
 		if err != nil {
 			return err
 		}
 
 		if len(bytes.TrimSpace(fileBytes)) != 0 {
-			err := convertInputAndRun(outputWriter, decoder, fileBytes, fileInfo.path, program, flags)
+			err := convertInputAndRun(outputWriter, decoder, fileBytes, file.Path(), program, flags)
 			if err != nil {
 				return err
 			}
@@ -236,8 +104,8 @@ func processFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string,
 	return nil
 }
 
-func convertInputAndRun(outputWriter io.Writer, decoder formats.Encoding, fileBytes []byte, path, program string, flags flags) error {
-	encoder, err := determineEncoder(flags.outputFormat, decoder)
+func convertInputAndRun(outputWriter io.Writer, decoder formats.Encoding, fileBytes []byte, path, program string, flags Flags) error {
+	encoder, err := determineEncoder(flags.OutputFormat, decoder)
 	if err != nil {
 		return err
 	}
@@ -273,20 +141,20 @@ func convertInputAndRun(outputWriter io.Writer, decoder formats.Encoding, fileBy
 	return nil
 }
 
-func combineJSONFilesToJSONArray(fileInfos []*fileInfo, inputFormat string) ([]byte, error) {
+func combineJSONFilesToJSONArray(files []File, inputFormat string) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// append the first array bracket
 	buf.WriteRune('[')
 
 	// iterate over each file, appending it's contents to an array
-	for i, fileInfo := range fileInfos {
-		decoder, err := determineDecoder(inputFormat, fileInfo)
+	for i, file := range files {
+		decoder, err := determineDecoder(inputFormat, file)
 		if err != nil {
 			return nil, err
 		}
 
-		fileBytes, err := fileInfo.GetContents()
+		fileBytes, err := file.Contents()
 		if err != nil {
 			return nil, err
 		}
@@ -300,7 +168,7 @@ func combineJSONFilesToJSONArray(fileInfos []*fileInfo, inputFormat string) ([]b
 					break
 				}
 				if err != nil {
-					return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", fileInfo.path, err)
+					return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
 				}
 				if len(bytes.TrimSpace(data)) != 0 {
 					dataList = append(dataList, data)
@@ -315,17 +183,17 @@ func combineJSONFilesToJSONArray(fileInfos []*fileInfo, inputFormat string) ([]b
 				}
 			}
 			// append a comma between each file
-			if len(dataList) != 0 && i != len(fileInfos)-1 {
+			if len(dataList) != 0 && i != len(files)-1 {
 				buf.WriteRune(',')
 			}
 		} else {
 			data, err := decoder.MarshalJSONBytes(fileBytes)
 			if err != nil {
-				return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", fileInfo.path, err)
+				return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
 			}
 			if len(bytes.TrimSpace(data)) != 0 {
 				buf.Write(data)
-				if i != len(fileInfos)-1 {
+				if i != len(files)-1 {
 					buf.WriteRune(',')
 				}
 			}
@@ -341,8 +209,8 @@ func combineJSONFilesToJSONArray(fileInfos []*fileInfo, inputFormat string) ([]b
 // slurpFiles takes a list of files, and for each, attempts to convert it to
 // a JSON value and appends each JSON value to an array, and passes that array
 // as the input to the jq program.
-func slurpFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string, encoder formats.Encoding, flags flags) error {
-	data, err := combineJSONFilesToJSONArray(fileInfos, flags.inputFormat)
+func slurpFiles(outputWriter io.Writer, files []File, program string, encoder formats.Encoding, flags Flags) error {
+	data, err := combineJSONFilesToJSONArray(files, flags.InputFormat)
 	if err != nil {
 		return err
 	}
@@ -355,41 +223,8 @@ func slurpFiles(outputWriter io.Writer, fileInfos []*fileInfo, program string, e
 	return nil
 }
 
-type fileInfo struct {
-	path   string
-	reader io.Reader
-	data   []byte
-	read   bool
-}
-
-func (info *fileInfo) GetContents() ([]byte, error) {
-	if !info.read {
-		if readCloser, ok := info.reader.(io.ReadCloser); ok {
-			defer readCloser.Close()
-		}
-		var err error
-		info.data, err = ioutil.ReadAll(info.reader)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read file at %s: `%s`", info.path, err)
-		}
-
-		info.read = true
-	}
-	return info.data, nil
-}
-
-func openFile(path string, flags flags) (*fileInfo, error) {
-	path = os.ExpandEnv(path)
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file at %s: `%s`", path, err)
-	}
-
-	return &fileInfo{path: path, reader: file}, nil
-}
-
-func runJQ(outputWriter io.Writer, program string, input []byte, encoder formats.Encoding, flags flags) error {
-	if flags.provideNull {
+func runJQ(outputWriter io.Writer, program string, input []byte, encoder formats.Encoding, flags Flags) error {
+	if flags.ProvideNull {
 		input = []byte("null")
 	}
 
@@ -413,28 +248,28 @@ func runJQ(outputWriter io.Writer, program string, input []byte, encoder formats
 	return nil
 }
 
-func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encoding, flags flags) error {
+func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encoding, flags Flags) error {
 	output, err := encoder.UnmarshalJSONBytes([]byte(jqOutput))
 	if err != nil {
-		return fmt.Errorf("failed to encode jq program output as %s: %s", flags.outputFormat, err)
+		return fmt.Errorf("failed to encode jq program output as %s: %s", flags.OutputFormat, err)
 	}
 
-	if flags.pretty {
+	if flags.Pretty {
 		output, err = encoder.PrettyPrint(output)
 		if err != nil {
-			return fmt.Errorf("failed to encode jq program output as pretty %s: %s", flags.outputFormat, err)
+			return fmt.Errorf("failed to encode jq program output as pretty %s: %s", flags.OutputFormat, err)
 		}
 	}
 
-	if flags.raw {
+	if flags.Raw {
 		output, err = encoder.Raw(output)
 		if err != nil {
-			return fmt.Errorf("failed to encode jq program output as raw %s: %s", flags.outputFormat, err)
+			return fmt.Errorf("failed to encode jq program output as raw %s: %s", flags.OutputFormat, err)
 		}
-	} else if flags.color && !flags.monochrome {
+	} else if flags.Color && !flags.Monochrome {
 		output, err = encoder.Color(output)
 		if err != nil {
-			return fmt.Errorf("failed to encode jq program output as color %s: %s", flags.outputFormat, err)
+			return fmt.Errorf("failed to encode jq program output as color %s: %s", flags.OutputFormat, err)
 		}
 	}
 
@@ -442,13 +277,13 @@ func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encodin
 	return nil
 }
 
-func parseArgs(jsonBytes []byte, flags flags) ([]byte, error) {
+func parseArgs(jsonBytes []byte, flags Flags) ([]byte, error) {
 	var positionalArgsArray []interface{}
-	for _, arg := range flags.args {
+	for _, arg := range flags.Args {
 		positionalArgsArray = append(positionalArgsArray, arg)
 	}
 
-	for _, value := range flags.jsonargs {
+	for _, value := range flags.Jsonargs {
 		var i interface{}
 		err := json.Unmarshal(value, &i)
 		if err != nil {
@@ -460,12 +295,12 @@ func parseArgs(jsonBytes []byte, flags flags) ([]byte, error) {
 	programArgs := make(map[string]interface{}, 0)
 	namedArgs := make(map[string]interface{}, 0)
 
-	for key, value := range flags.kwargs {
+	for key, value := range flags.Kwargs {
 		programArgs[key] = string(value)
 		namedArgs[key] = string(value)
 	}
 
-	for key, jsonValue := range flags.jsonkwargs {
+	for key, jsonValue := range flags.Jsonkwargs {
 		var i interface{}
 		err := json.Unmarshal(jsonValue, &i)
 		if err != nil {
@@ -484,11 +319,11 @@ func parseArgs(jsonBytes []byte, flags flags) ([]byte, error) {
 	return json.Marshal(programArgs)
 }
 
-func determineDecoder(inputFormat string, fileInfo *fileInfo) (formats.Encoding, error) {
+func determineDecoder(inputFormat string, file File) (formats.Encoding, error) {
 	var decoder formats.Encoding
 	var err error
 	if inputFormat == "auto" {
-		decoder, err = detectFormat(fileInfo)
+		decoder, err = detectFormat(file)
 	} else {
 		var ok bool
 		decoder, ok = formatByName(inputFormat)
@@ -518,18 +353,18 @@ func determineEncoder(outputFormat string, decoder formats.Encoding) (formats.En
 	return encoder, nil
 }
 
-func detectFormat(fileInfo *fileInfo) (formats.Encoding, error) {
-	if ext := filepath.Ext(fileInfo.path); ext != "" {
+func detectFormat(file File) (formats.Encoding, error) {
+	if ext := filepath.Ext(file.Path()); ext != "" {
 		if format, ok := formatByName(ext[1:]); ok {
 			return format, nil
 		}
 	}
 
-	fileBytes, err := fileInfo.GetContents()
+	fileBytes, err := file.Contents()
 	if err != nil {
 		return nil, err
 	}
-	format := linguist.LanguageByContents(fileBytes, linguist.LanguageHints(fileInfo.path))
+	format := linguist.LanguageByContents(fileBytes, linguist.LanguageHints(file.Path()))
 	format = strings.ToLower(format)
 
 	// This is what linguist says when it has no idea what it's talking about.
