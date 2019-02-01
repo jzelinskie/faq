@@ -19,6 +19,17 @@ func TestRunFaq(t *testing.T) {
 			inputFileContents: []string{},
 		},
 		{
+			name:              "null flag input simple program",
+			program:           ".",
+			inputFileContents: []string{},
+			expectedOutput:    "null\n",
+			flags: flags{
+				provideNull:  true,
+				inputFormat:  "json",
+				outputFormat: "json",
+			},
+		},
+		{
 			name:    "single file empty object simple program",
 			program: ".",
 			inputFileContents: []string{
