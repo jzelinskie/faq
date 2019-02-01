@@ -15,7 +15,8 @@ ifeq ($(FAQ_LINK_STATIC), true)
 GO_EXT_LD_FLAGS+= -static
 endif
 
-GO_LD_FLAGS=-s -w -linkmode external -extldflags "$(GO_EXT_LD_FLAGS)"
+FAQ_VERSION=$(shell git describe --always --abbrev=40 --dirty)
+GO_LD_FLAGS=-s -w -X main.version=$(FAQ_VERSION) -linkmode external -extldflags "$(GO_EXT_LD_FLAGS)"
 
 GO=go
 GO_BUILD_ARGS=-v -ldflags '$(GO_LD_FLAGS)'
