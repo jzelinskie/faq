@@ -112,7 +112,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
 		program = string(programBytes)
 	} else if len(args) == 0 {
 		program = "."
-	} else if len(args) == 1 {
+	} else if len(args) >= 1 {
 		program = args[0]
 		args = args[1:]
 	}
