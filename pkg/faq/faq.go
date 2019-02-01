@@ -38,6 +38,8 @@ type Flags struct {
 	PrintVersion bool
 }
 
+var errInvalidOutputFormat = errors.New("invalid output format")
+
 // RunFaq takes a list of files, a jq program, and flags, and runs the
 // specified jq program against the files provided, writing results to
 // outputWriter.
@@ -48,9 +50,9 @@ func RunFaq(outputWriter io.Writer, files []File, program string, flags Flags) e
 	}
 
 	if flags.ProvideNull {
-		encoder, ok := formatByName(flags.OutputFormat)
+		encoder, ok := formats.ByName(flags.OutputFormat)
 		if !ok {
-			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
+			return errInvalidOutputFormat
 		}
 		err := runJQ(outputWriter, program, nil, encoder, flags)
 		if err != nil {
@@ -61,12 +63,9 @@ func RunFaq(outputWriter io.Writer, files []File, program string, flags Flags) e
 
 	// Handle each file path provided.
 	if flags.Slurp {
-		if flags.OutputFormat == "" {
-			return fmt.Errorf("must specify --output-format when using --slurp")
-		}
-		encoder, ok := formatByName(flags.OutputFormat)
+		encoder, ok := formats.ByName(flags.OutputFormat)
 		if !ok {
-			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
+			return errInvalidOutputFormat
 		}
 		err := slurpFiles(outputWriter, files, program, encoder, flags)
 		if err != nil {
@@ -321,7 +320,7 @@ func determineDecoder(inputFormat string, file File) (formats.Encoding, error) {
 		decoder, err = detectFormat(file)
 	} else {
 		var ok bool
-		decoder, ok = formatByName(inputFormat)
+		decoder, ok = formats.ByName(inputFormat)
 		if !ok {
 			err = fmt.Errorf("no supported format found named %s", inputFormat)
 		}
@@ -339,7 +338,7 @@ func determineEncoder(outputFormat string, decoder formats.Encoding) (formats.En
 	if outputFormat == "auto" {
 		encoder = decoder
 	} else {
-		encoder, ok = formatByName(outputFormat)
+		encoder, ok = formats.ByName(outputFormat)
 		if !ok {
 			return nil, fmt.Errorf("no supported format found named %s", outputFormat)
 		}
@@ -350,7 +349,7 @@ func determineEncoder(outputFormat string, decoder formats.Encoding) (formats.En
 
 func detectFormat(file File) (formats.Encoding, error) {
 	if ext := filepath.Ext(file.Path()); ext != "" {
-		if format, ok := formatByName(ext[1:]); ok {
+		if format, ok := formats.ByName(ext[1:]); ok {
 			return format, nil
 		}
 	}
@@ -363,7 +362,7 @@ func detectFormat(file File) (formats.Encoding, error) {
 	format := strings.ToLower(linguist.Analyse(fileBytes, linguist.LanguageHints(file.Path())))
 
 	// If linguist doesn't detect care about then try to take a better guess.
-	if _, ok := formats.ByName[format]; !ok {
+	if _, ok := formats.ByName(format); !ok {
 		// Look for either {, <, or --- at the beginning of the file to detect
 		// json/xml/yaml.
 		scanner := bufio.NewScanner(bytes.NewReader(fileBytes))
@@ -398,16 +397,9 @@ func detectFormat(file File) (formats.Encoding, error) {
 	}
 
 	// Go isn't smart enough to do this in one line.
-	enc, ok := formats.ByName[format]
+	enc, ok := formats.ByName(format)
 	if !ok {
 		return nil, errors.New("failed to detect format of the input")
 	}
 	return enc, nil
-}
-
-func formatByName(name string) (formats.Encoding, bool) {
-	if format, ok := formats.ByName[strings.ToLower(name)]; ok {
-		return format, true
-	}
-	return nil, false
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/jzelinskie/faq/pkg/faq"
 	"github.com/jzelinskie/faq/pkg/flagutil"
+	"github.com/jzelinskie/faq/pkg/formats"
 	"github.com/jzelinskie/faq/pkg/version"
 )
 
@@ -135,6 +136,23 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
 				return err
 			}
 			fileInfos = append(fileInfos, fileInfo)
+		}
+	}
+
+	if flags.ProvideNull {
+		_, ok := formats.ByName(flags.OutputFormat)
+		if !ok {
+			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
+		}
+	}
+
+	if flags.Slurp {
+		if flags.OutputFormat == "" {
+			return fmt.Errorf("must specify --output-format when using --slurp")
+		}
+		_, ok := formats.ByName(flags.OutputFormat)
+		if !ok {
+			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}
 	}
 

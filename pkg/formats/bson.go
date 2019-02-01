@@ -31,5 +31,5 @@ func (bsonEncoding) PrettyPrint(bsonBytes []byte) ([]byte, error) { return bsonB
 func (bsonEncoding) Color(bsonBytes []byte) ([]byte, error)       { return bsonBytes, nil }
 
 func init() {
-	ByName["bson"] = bsonEncoding{}
+	Register("bson", bsonEncoding{})
 }

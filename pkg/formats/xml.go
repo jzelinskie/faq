@@ -45,12 +45,12 @@ func (xmlEncoding) Color(xmlBytes []byte) ([]byte, error) {
 }
 
 func init() {
-	ByName["rss"] = xmlEncoding{}
-	ByName["svg"] = xmlEncoding{}
-	ByName["wsdl"] = xmlEncoding{}
-	ByName["wsf"] = xmlEncoding{}
-	ByName["xml"] = xmlEncoding{}
-	ByName["xsd"] = xmlEncoding{}
-	ByName["xsl"] = xmlEncoding{}
-	ByName["xslt"] = xmlEncoding{}
+	Register("rss", xmlEncoding{})
+	Register("svg", xmlEncoding{})
+	Register("wsdl", xmlEncoding{})
+	Register("wsf", xmlEncoding{})
+	Register("xml", xmlEncoding{})
+	Register("xsd", xmlEncoding{})
+	Register("xsl", xmlEncoding{})
+	Register("xslt", xmlEncoding{})
 }

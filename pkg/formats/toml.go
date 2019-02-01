@@ -45,5 +45,5 @@ func (tomlEncoding) Color(tomlBytes []byte) ([]byte, error) {
 }
 
 func init() {
-	ByName["toml"] = tomlEncoding{}
+	Register("toml", tomlEncoding{})
 }
