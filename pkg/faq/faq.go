@@ -1,6 +1,7 @@
 package faq
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/Azure/draft/pkg/linguist"
 	"golang.org/x/crypto/ssh/terminal"
@@ -365,13 +367,42 @@ func detectFormat(file File) (formats.Encoding, error) {
 	if err != nil {
 		return nil, err
 	}
-	format := linguist.LanguageByContents(fileBytes, linguist.LanguageHints(file.Path()))
-	format = strings.ToLower(format)
 
-	// This is what linguist says when it has no idea what it's talking about.
-	// For now, just fallback to JSON.
-	if format == "coq" {
-		format = "json"
+	format := strings.ToLower(linguist.Analyse(fileBytes, linguist.LanguageHints(file.Path())))
+
+	// If linguist doesn't detect care about then try to take a better guess.
+	if _, ok := formats.ByName[format]; !ok {
+		// Look for either {, <, or --- at the beginning of the file to detect
+		// json/xml/yaml.
+		scanner := bufio.NewScanner(bytes.NewReader(fileBytes))
+		keepScanning := true
+		for keepScanning && scanner.Scan() {
+			line := scanner.Bytes()
+			for i, b := range line {
+				// Go through each byte until we find a non-whitespace
+				// character.
+				if !unicode.IsSpace(rune(b)) {
+					// If it's either character we're looking for, set the
+					// correct format.
+					if b == '{' {
+						format = "json"
+					} else if b == '<' {
+						format = "xml"
+					} else if b == '-' {
+						// If we run into a -, then check if there is a yaml
+						// document separator ---.
+						if len(line[i:]) >= 3 && bytes.Equal(line[i:i+3], []byte("---")) {
+							format = "yaml"
+						}
+					}
+					// Break here because if the first non-whitespace character
+					// isn't what we're looking for, then we didn't find what
+					// we're looking for.
+					keepScanning = false
+					break
+				}
+			}
+		}
 	}
 
 	// Go isn't smart enough to do this in one line.
