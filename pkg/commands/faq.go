@@ -28,7 +28,7 @@ func ExecuteFaqCmd() {
 
 // NewFaqCommand returns a cobra.Command that
 func NewFaqCommand() *cobra.Command {
-	var flags faq.Flags
+	var flags flags
 
 	stringKwargsFlag := flagutil.NewKwargStringFlag(&flags.Kwargs)
 	jsonKwargsFlag := flagutil.NewKwargJSONFlag(&flags.Jsonkwargs)
@@ -81,7 +81,7 @@ How do you pronounce "faq"? Fuck you.
 	return rootCmd
 }
 
-func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
+func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 	if flags.Debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
@@ -104,7 +104,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
 		paths   []string
 	)
 
-	var fileInfos []faq.File
+	var files []faq.File
 	if flags.ProgramFile != "" {
 		programBytes, err := ioutil.ReadFile(flags.ProgramFile)
 		if err != nil {
@@ -135,26 +135,67 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
 			if err != nil {
 				return err
 			}
-			fileInfos = append(fileInfos, fileInfo)
+			files = append(files, fileInfo)
 		}
 	}
 
+	outputWriter := os.Stdin
+	programArgs := faq.ProgramArguments{flags.Args, flags.Jsonargs, flags.Kwargs, flags.Jsonkwargs}
+	outputConf := faq.OutputConfig{
+		Raw:    flags.Raw,
+		Pretty: flags.Pretty,
+		Color:  flags.Color && !flags.Monochrome,
+	}
+
 	if flags.ProvideNull {
-		_, ok := formats.ByName(flags.OutputFormat)
+		encoder, ok := formats.ByName(flags.OutputFormat)
 		if !ok {
 			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}
+		err := faq.ExecuteProgram(nil, program, programArgs, outputWriter, encoder, outputConf)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
 	if flags.Slurp {
 		if flags.OutputFormat == "" {
 			return fmt.Errorf("must specify --output-format when using --slurp")
 		}
-		_, ok := formats.ByName(flags.OutputFormat)
+		encoder, ok := formats.ByName(flags.OutputFormat)
 		if !ok {
 			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}
+		err := faq.SlurpAllFiles(flags.InputFormat, files, program, programArgs, outputWriter, encoder, outputConf)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := faq.ProcessEachFile(flags.InputFormat, files, program, programArgs, outputWriter, flags.OutputFormat, outputConf)
+		if err != nil {
+			return err
+		}
 	}
 
-	return faq.RunFaq(fileInfos, program, flags, os.Stdout)
+	return nil
+}
+
+// Flags are the configuration flags for faq
+type flags struct {
+	Debug        bool
+	InputFormat  string
+	OutputFormat string
+	ProgramFile  string
+	Raw          bool
+	Color        bool
+	Monochrome   bool
+	Pretty       bool
+	Slurp        bool
+	ProvideNull  bool
+	Args         []string
+	Jsonargs     []interface{}
+	Kwargs       map[string]string
+	Jsonkwargs   map[string]interface{}
+	PrintVersion bool
 }

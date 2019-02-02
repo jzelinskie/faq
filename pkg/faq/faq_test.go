@@ -2,15 +2,19 @@ package faq
 
 import (
 	"bytes"
+	"strconv"
 	"testing"
+
+	"github.com/jzelinskie/faq/pkg/formats"
 )
 
-func TestRunFaq(t *testing.T) {
+func TestProcessEachFile(t *testing.T) {
 	testCases := []struct {
 		name              string
 		program           string
 		inputFileContents []string
-		flags             Flags
+		inputFormat       string
+		outputFormat      string
 		expectedOutput    string
 	}{
 		{
@@ -19,27 +23,14 @@ func TestRunFaq(t *testing.T) {
 			inputFileContents: []string{},
 		},
 		{
-			name:              "null flag input simple program",
-			program:           ".",
-			inputFileContents: []string{},
-			expectedOutput:    "null\n",
-			flags: Flags{
-				ProvideNull:  true,
-				InputFormat:  "json",
-				OutputFormat: "json",
-			},
-		},
-		{
 			name:    "single file empty object simple program",
 			program: ".",
 			inputFileContents: []string{
 				`{}`,
 			},
 			expectedOutput: "{}\n",
-			flags: Flags{
-				InputFormat:  "json",
-				OutputFormat: "json",
-			},
+			inputFormat:    "json",
+			outputFormat:   "json",
 		},
 		{
 			name:    "single file multiple simple object json stream simple program",
@@ -48,10 +39,8 @@ func TestRunFaq(t *testing.T) {
 				"{}\n{}\n",
 			},
 			expectedOutput: "{}\n{}\n",
-			flags: Flags{
-				InputFormat:  "json",
-				OutputFormat: "json",
-			},
+			inputFormat:    "json",
+			outputFormat:   "json",
 		},
 		{
 			name:    "single file multiple complex object json stream simple program",
@@ -69,10 +58,8 @@ func TestRunFaq(t *testing.T) {
 {}
 {"foo":true}
 `,
-			flags: Flags{
-				InputFormat:  "json",
-				OutputFormat: "json",
-			},
+			inputFormat:  "json",
+			outputFormat: "json",
 		},
 		{
 			name:    "single file empty string simple program",
@@ -81,10 +68,8 @@ func TestRunFaq(t *testing.T) {
 				`""`,
 			},
 			expectedOutput: `""` + "\n",
-			flags: Flags{
-				InputFormat:  "json",
-				OutputFormat: "json",
-			},
+			inputFormat:    "json",
+			outputFormat:   "json",
 		},
 		{
 			name:    "single file yaml stream simple program",
@@ -98,10 +83,9 @@ bar: false`,
 			expectedOutput: `{"foo":true}
 {"bar":false}
 `,
-			flags: Flags{
-				InputFormat:  "yaml",
-				OutputFormat: "json",
-			},
+
+			inputFormat:  "yaml",
+			outputFormat: "json",
 		},
 		{
 			// TODO: this should return "" as the output probably
@@ -113,10 +97,8 @@ bar: false`,
 			},
 			expectedOutput: `null
 `,
-			flags: Flags{
-				InputFormat:  "yaml",
-				OutputFormat: "json",
-			},
+			inputFormat:  "yaml",
+			outputFormat: "json",
 		},
 		{
 			// TODO: this should return "" as the output probably
@@ -129,10 +111,8 @@ bar: false`,
 `,
 			},
 			expectedOutput: "null\nnull\nnull\n",
-			flags: Flags{
-				InputFormat:  "yaml",
-				OutputFormat: "json",
-			},
+			inputFormat:    "yaml",
+			outputFormat:   "json",
 		},
 		{
 			name:    "single file yaml stream with extra newlines simple program",
@@ -156,10 +136,8 @@ bar: false
 			expectedOutput: `{"foo":true}
 {"bar":false}
 `,
-			flags: Flags{
-				InputFormat:  "yaml",
-				OutputFormat: "json",
-			},
+			inputFormat:  "yaml",
+			outputFormat: "json",
 		},
 		{
 			name:    "single file bool simple program",
@@ -168,10 +146,8 @@ bar: false
 				`true`,
 			},
 			expectedOutput: "true\n",
-			flags: Flags{
-				InputFormat:  "json",
-				OutputFormat: "json",
-			},
+			inputFormat:    "json",
+			outputFormat:   "json",
 		},
 		{
 			name:    "multiple file simple program",
@@ -181,97 +157,8 @@ bar: false
 				`true`,
 			},
 			expectedOutput: "{}\ntrue\n",
-			flags: Flags{
-				InputFormat:  "json",
-				OutputFormat: "json",
-			},
-		},
-		{
-			name:    "slurp single file empty",
-			program: ".",
-			inputFileContents: []string{
-				``,
-			},
-			expectedOutput: "[]\n",
-			flags: Flags{
-				InputFormat:  "json",
-				OutputFormat: "json",
-				Slurp:        true,
-			},
-		},
-		{
-			name:    "slurp multiple file empty",
-			program: ".",
-			inputFileContents: []string{
-				``,
-				``,
-			},
-			expectedOutput: "[]\n",
-			flags: Flags{
-				InputFormat:  "json",
-				OutputFormat: "json",
-				Slurp:        true,
-			},
-		},
-		{
-			name:    "slurp multiple file simple",
-			program: ".",
-			inputFileContents: []string{
-				`{}`,
-				``,   // empty files are ignored
-				`""`, // an empty string is valid
-				`true`,
-			},
-			expectedOutput: `[{},"",true]` + "\n",
-			flags: Flags{
-				InputFormat:  "json",
-				OutputFormat: "json",
-				Slurp:        true,
-			},
-		},
-		{
-			name:    "slurp multiple file json stream",
-			program: ".",
-			inputFileContents: []string{
-				`
-{}
-{}
-{
-	"bar": 2
-}
-`,
-				``,   // empty files are ignored
-				`""`, // an empty string is valid
-				`true`,
-			},
-			expectedOutput: `[{},{},{"bar":2},"",true]` + "\n",
-			flags: Flags{
-				InputFormat:  "json",
-				OutputFormat: "json",
-				Slurp:        true,
-			},
-		},
-		{
-			name:    "slurp multiple file yaml stream simple program",
-			program: ".",
-			inputFileContents: []string{
-				`---
-foo: true
----
-bar: false`,
-				`---
-fizz: buzz
----
-cats: dogs
-`,
-			},
-			expectedOutput: `[{"foo":true},{"bar":false},{"fizz":"buzz"},{"cats":"dogs"}]
-`,
-			flags: Flags{
-				InputFormat:  "yaml",
-				OutputFormat: "json",
-				Slurp:        true,
-			},
+			inputFormat:    "json",
+			outputFormat:   "json",
 		},
 	}
 
@@ -287,7 +174,154 @@ cats: dogs
 				})
 			}
 			var outputBuf bytes.Buffer
-			err := RunFaq(files, testCase.program, testCase.flags, &outputBuf)
+			err := ProcessEachFile(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, testCase.outputFormat, OutputConfig{})
+			if err != nil {
+				t.Errorf("expected no err, got %#v", err)
+			}
+
+			output := outputBuf.String()
+			if output != testCase.expectedOutput {
+				t.Errorf("incorrect output expected=%s, got=%s", testCase.expectedOutput, output)
+			}
+		})
+	}
+}
+
+func TestExecuteProgram(t *testing.T) {
+	testCases := []struct {
+		name           string
+		program        string
+		input          *[]byte
+		inputFormat    string
+		outputFormat   string
+		programArgs    ProgramArguments
+		expectedOutput string
+	}{
+		{
+			name:           "null input simple program",
+			program:        ".",
+			input:          nil,
+			expectedOutput: "null\n",
+			inputFormat:    "json",
+			outputFormat:   "json",
+		},
+	}
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			encoder, _ := formats.ByName(testCase.outputFormat)
+			var outputBuf bytes.Buffer
+			err := ExecuteProgram(testCase.input, testCase.program, testCase.programArgs, &outputBuf, encoder, OutputConfig{})
+			if err != nil {
+				t.Errorf("expected no err, got %#v", err)
+			}
+
+			output := outputBuf.String()
+			if output != testCase.expectedOutput {
+				t.Errorf("incorrect output expected=%s, got=%s", testCase.expectedOutput, output)
+			}
+		})
+	}
+}
+
+func TestSlurpAllFiles(t *testing.T) {
+	testCases := []struct {
+		name              string
+		program           string
+		inputFileContents []string
+		inputFormat       string
+		outputFormat      string
+		expectedOutput    string
+	}{
+
+		{
+			name:    "slurp single file empty",
+			program: ".",
+			inputFileContents: []string{
+				``,
+			},
+			expectedOutput: "[]\n",
+			inputFormat:    "json",
+			outputFormat:   "json",
+		},
+		{
+			name:    "slurp multiple file empty",
+			program: ".",
+			inputFileContents: []string{
+				``,
+				``,
+			},
+			expectedOutput: "[]\n",
+			inputFormat:    "json",
+			outputFormat:   "json",
+		},
+		{
+			name:    "slurp multiple file simple",
+			program: ".",
+			inputFileContents: []string{
+				`{}`,
+				``,   // empty files are ignored
+				`""`, // an empty string is valid
+				`true`,
+			},
+			expectedOutput: `[{},"",true]` + "\n",
+			inputFormat:    "json",
+			outputFormat:   "json",
+		},
+		{
+			name:    "slurp multiple file json stream",
+			program: ".",
+			inputFileContents: []string{
+				`
+ {}
+ {}
+ {
+	 "bar": 2
+ }
+ `,
+				``,   // empty files are ignored
+				`""`, // an empty string is valid
+				`true`,
+			},
+			expectedOutput: `[{},{},{"bar":2},"",true]` + "\n",
+			inputFormat:    "json",
+			outputFormat:   "json",
+		},
+		{
+			name:    "slurp multiple file yaml stream simple program",
+			program: ".",
+			inputFileContents: []string{
+				`---
+foo: true
+---
+bar: false
+`,
+				`---
+fizz: buzz
+---
+cats: dogs
+`,
+			},
+			expectedOutput: `[{"foo":true},{"bar":false},{"fizz":"buzz"},{"cats":"dogs"}]
+`,
+			inputFormat:  "yaml",
+			outputFormat: "json",
+		},
+	}
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			var files []File
+			for i, fileContent := range testCase.inputFileContents {
+				files = append(files, &FileInfo{
+					path: "test-path-" + strconv.Itoa(i),
+					read: true,
+					data: []byte(fileContent),
+				})
+			}
+			encoder, _ := formats.ByName(testCase.outputFormat)
+			var outputBuf bytes.Buffer
+			err := SlurpAllFiles(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, encoder, OutputConfig{})
 			if err != nil {
 				t.Errorf("expected no err, got %#v", err)
 			}
