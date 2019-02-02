@@ -18,7 +18,7 @@ import (
 )
 
 // ProcessEachFile takes a list of files, and for each, attempts to convert it
-// to a JSON value and runs the jq program against it
+// to a JSON value and runs ExecuteProgram against each.
 func ProcessEachFile(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, outputFormat string, outputConf OutputConfig) error {
 	for _, file := range files {
 		decoder, err := determineDecoder(inputFormat, file)
@@ -44,7 +44,7 @@ func ProcessEachFile(inputFormat string, files []File, program string, programAr
 
 // SlurpAllFiles takes a list of files, and for each, attempts to convert it to
 // a JSON value and appends each JSON value to an array, and passes that array
-// as the input to the jq program.
+// as the input ExecuteProgram.
 func SlurpAllFiles(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, encoder formats.Encoding, outputConf OutputConfig) error {
 	data, err := combineJSONFilesToJSONArray(files, inputFormat)
 	if err != nil {
@@ -59,13 +59,15 @@ func SlurpAllFiles(inputFormat string, files []File, program string, programArgs
 	return nil
 }
 
+// ExecuteProgram takes input, a single JSON value, and runs program via libjq
+// against it, writing the results to outputWriter.
 func ExecuteProgram(input *[]byte, program string, programArgs ProgramArguments, outputWriter io.Writer, encoder formats.Encoding, outputConf OutputConfig) error {
 	if input == nil {
 		input = new([]byte)
 		*input = []byte("null")
 	}
 
-	args, err := parseArgs(*input, programArgs)
+	args, err := marshalJqArgs(*input, programArgs)
 	if err != nil {
 		return err
 	}
@@ -187,6 +189,7 @@ func combineJSONFilesToJSONArray(files []File, inputFormat string) ([]byte, erro
 	return buf.Bytes(), nil
 }
 
+// OutputConfig contains configuration for out to print out values
 type OutputConfig struct {
 	Raw    bool
 	Pretty bool
@@ -224,6 +227,7 @@ func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encodin
 	return nil
 }
 
+// ProgramArguments contains the arguments to a JQ program
 type ProgramArguments struct {
 	Args       []string
 	Jsonargs   []interface{}
@@ -231,7 +235,7 @@ type ProgramArguments struct {
 	Jsonkwargs map[string]interface{}
 }
 
-func parseArgs(jsonBytes []byte, jqArgs ProgramArguments) ([]byte, error) {
+func marshalJqArgs(jsonBytes []byte, jqArgs ProgramArguments) ([]byte, error) {
 	var positionalArgsArray []interface{}
 	programArgs := make(map[string]interface{})
 	namedArgs := make(map[string]interface{})

@@ -140,7 +140,12 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 	}
 
 	outputWriter := os.Stdin
-	programArgs := faq.ProgramArguments{flags.Args, flags.Jsonargs, flags.Kwargs, flags.Jsonkwargs}
+	programArgs := faq.ProgramArguments{
+		Args:       flags.Args,
+		Jsonargs:   flags.Jsonargs,
+		Kwargs:     flags.Kwargs,
+		Jsonkwargs: flags.Jsonkwargs,
+	}
 	outputConf := faq.OutputConfig{
 		Raw:    flags.Raw,
 		Pretty: flags.Pretty,
