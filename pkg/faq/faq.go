@@ -26,15 +26,43 @@ func ProcessEachFile(inputFormat string, files []File, program string, programAr
 			return err
 		}
 
+		encoder, err := determineEncoder(outputFormat, decoder)
+		if err != nil {
+			return err
+		}
+
 		fileBytes, err := file.Contents()
 		if err != nil {
 			return err
 		}
 
 		if len(bytes.TrimSpace(fileBytes)) != 0 {
-			err := convertInputAndRun(decoder, fileBytes, file.Path(), program, programArgs, outputWriter, outputFormat, outputConf)
-			if err != nil {
-				return err
+			if streamable, ok := decoder.(formats.Streamable); ok {
+				decoder := streamable.NewDecoder(fileBytes)
+				for {
+					data, err := decoder.MarshalJSONBytes()
+					if err == io.EOF {
+						break
+					}
+					if err != nil {
+						return fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
+					}
+
+					err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf)
+					if err != nil {
+						return err
+					}
+				}
+			} else {
+				data, err := decoder.MarshalJSONBytes(fileBytes)
+				if err != nil {
+					return fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
+				}
+
+				err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -84,43 +112,6 @@ func ExecuteProgram(input *[]byte, program string, programArgs ProgramArguments,
 		}
 	}
 
-	return nil
-}
-
-func convertInputAndRun(decoder formats.Encoding, fileBytes []byte, path, program string, programArgs ProgramArguments, outputWriter io.Writer, outputFormat string, outputConf OutputConfig) error {
-	encoder, err := determineEncoder(outputFormat, decoder)
-	if err != nil {
-		return err
-	}
-
-	if streamable, ok := decoder.(formats.Streamable); ok {
-		decoder := streamable.NewDecoder(fileBytes)
-		for {
-			data, err := decoder.MarshalJSONBytes()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
-			}
-
-			err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	data, err := decoder.MarshalJSONBytes(fileBytes)
-	if err != nil {
-		return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
-	}
-
-	err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
