@@ -41,13 +41,20 @@ var errInvalidOutputFormat = errors.New("invalid output format")
 // RunFaq takes a list of files, a jq program, and flags, and runs the
 // specified jq program against the files provided, writing results to
 // outputWriter.
-func RunFaq(outputWriter io.Writer, files []File, program string, flags Flags) error {
+func RunFaq(files []File, program string, flags Flags, outputWriter io.Writer) error {
+	programArgs := programArguments{flags.Args, flags.Jsonargs, flags.Kwargs, flags.Jsonkwargs}
+	outputConf := outputConfig{
+		Raw:     flags.Raw,
+		Compact: !flags.Pretty,
+		Color:   flags.Color && !flags.Monochrome,
+	}
+
 	if flags.ProvideNull {
 		encoder, ok := formats.ByName(flags.OutputFormat)
 		if !ok {
 			return errInvalidOutputFormat
 		}
-		err := runJQ(outputWriter, program, nil, encoder, flags)
+		err := runJQ(nil, program, programArgs, outputWriter, encoder, outputConf)
 		if err != nil {
 			return err
 		}
@@ -60,12 +67,13 @@ func RunFaq(outputWriter io.Writer, files []File, program string, flags Flags) e
 		if !ok {
 			return errInvalidOutputFormat
 		}
-		err := slurpFiles(outputWriter, files, program, encoder, flags)
+
+		err := SlurpAllFiles(flags.InputFormat, files, program, programArgs, outputWriter, encoder, outputConf)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := processFiles(outputWriter, files, program, flags)
+		err := ProcessEachFile(flags.InputFormat, files, program, programArgs, outputWriter, flags.OutputFormat, outputConf)
 		if err != nil {
 			return err
 		}
@@ -74,11 +82,11 @@ func RunFaq(outputWriter io.Writer, files []File, program string, flags Flags) e
 	return nil
 }
 
-// processFiles takes a list of files, and for each, attempts to convert it
+// ProcessEachFile takes a list of files, and for each, attempts to convert it
 // to a JSON value and runs the jq program against it
-func processFiles(outputWriter io.Writer, files []File, program string, flags Flags) error {
+func ProcessEachFile(inputFormat string, files []File, program string, programArgs programArguments, outputWriter io.Writer, outputFormat string, outputConf outputConfig) error {
 	for _, file := range files {
-		decoder, err := determineDecoder(flags.InputFormat, file)
+		decoder, err := determineDecoder(inputFormat, file)
 		if err != nil {
 			return err
 		}
@@ -89,7 +97,7 @@ func processFiles(outputWriter io.Writer, files []File, program string, flags Fl
 		}
 
 		if len(bytes.TrimSpace(fileBytes)) != 0 {
-			err := convertInputAndRun(outputWriter, decoder, fileBytes, file.Path(), program, flags)
+			err := convertInputAndRun(decoder, fileBytes, file.Path(), program, programArgs, outputWriter, outputFormat, outputConf)
 			if err != nil {
 				return err
 			}
@@ -99,8 +107,8 @@ func processFiles(outputWriter io.Writer, files []File, program string, flags Fl
 	return nil
 }
 
-func convertInputAndRun(outputWriter io.Writer, decoder formats.Encoding, fileBytes []byte, path, program string, flags Flags) error {
-	encoder, err := determineEncoder(flags.OutputFormat, decoder)
+func convertInputAndRun(decoder formats.Encoding, fileBytes []byte, path, program string, programArgs programArguments, outputWriter io.Writer, outputFormat string, outputConf outputConfig) error {
+	encoder, err := determineEncoder(outputFormat, decoder)
 	if err != nil {
 		return err
 	}
@@ -116,7 +124,7 @@ func convertInputAndRun(outputWriter io.Writer, decoder formats.Encoding, fileBy
 				return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
 			}
 
-			err = runJQ(outputWriter, program, &data, encoder, flags)
+			err = runJQ(&data, program, programArgs, outputWriter, encoder, outputConf)
 			if err != nil {
 				return err
 			}
@@ -129,7 +137,7 @@ func convertInputAndRun(outputWriter io.Writer, decoder formats.Encoding, fileBy
 		return fmt.Errorf("failed to jsonify file at %s: `%s`", path, err)
 	}
 
-	err = runJQ(outputWriter, program, &data, encoder, flags)
+	err = runJQ(&data, program, programArgs, outputWriter, encoder, outputConf)
 	if err != nil {
 		return err
 	}
@@ -201,16 +209,16 @@ func combineJSONFilesToJSONArray(files []File, inputFormat string) ([]byte, erro
 	return buf.Bytes(), nil
 }
 
-// slurpFiles takes a list of files, and for each, attempts to convert it to
+// SlurpAllFiles takes a list of files, and for each, attempts to convert it to
 // a JSON value and appends each JSON value to an array, and passes that array
 // as the input to the jq program.
-func slurpFiles(outputWriter io.Writer, files []File, program string, encoder formats.Encoding, flags Flags) error {
-	data, err := combineJSONFilesToJSONArray(files, flags.InputFormat)
+func SlurpAllFiles(inputFormat string, files []File, program string, programArgs programArguments, outputWriter io.Writer, encoder formats.Encoding, outputConf outputConfig) error {
+	data, err := combineJSONFilesToJSONArray(files, inputFormat)
 	if err != nil {
 		return err
 	}
 
-	err = runJQ(outputWriter, program, &data, encoder, flags)
+	err = runJQ(&data, program, programArgs, outputWriter, encoder, outputConf)
 	if err != nil {
 		return err
 	}
@@ -218,14 +226,13 @@ func slurpFiles(outputWriter io.Writer, files []File, program string, encoder fo
 	return nil
 }
 
-func runJQ(outputWriter io.Writer, program string, input *[]byte, encoder formats.Encoding, flags Flags) error {
+func runJQ(input *[]byte, program string, programArgs programArguments, outputWriter io.Writer, encoder formats.Encoding, outputConf outputConfig) error {
 	if input == nil {
 		input = new([]byte)
 		*input = []byte("null")
 	}
 
-	inputArgs := programArguments{flags.Args, flags.Jsonargs, flags.Kwargs, flags.Jsonkwargs}
-	args, err := parseArgs(*input, inputArgs)
+	args, err := parseArgs(*input, programArgs)
 	if err != nil {
 		return err
 	}
@@ -235,11 +242,6 @@ func runJQ(outputWriter io.Writer, program string, input *[]byte, encoder format
 		return err
 	}
 
-	outputConf := outputConfig{
-		Raw:     flags.Raw,
-		Compact: !flags.Pretty,
-		Color:   flags.Color && !flags.Monochrome,
-	}
 	for _, output := range outputs {
 		err := printValue(output, outputWriter, encoder, outputConf)
 		if err != nil {

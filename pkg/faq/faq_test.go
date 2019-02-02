@@ -287,7 +287,7 @@ cats: dogs
 				})
 			}
 			var outputBuf bytes.Buffer
-			err := RunFaq(&outputBuf, files, testCase.program, testCase.flags)
+			err := RunFaq(files, testCase.program, testCase.flags, &outputBuf)
 			if err != nil {
 				t.Errorf("expected no err, got %#v", err)
 			}

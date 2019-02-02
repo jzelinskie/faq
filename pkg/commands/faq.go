@@ -131,7 +131,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
 
 		// Verify all files exist, and open them.
 		for _, path := range paths {
-			fileInfo, err := faq.OpenFile(path, flags)
+			fileInfo, err := faq.OpenFile(path)
 			if err != nil {
 				return err
 			}
@@ -156,5 +156,5 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
 		}
 	}
 
-	return faq.RunFaq(os.Stdout, fileInfos, program, flags)
+	return faq.RunFaq(fileInfos, program, flags, os.Stdout)
 }
