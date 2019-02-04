@@ -35,6 +35,6 @@ func (bencodeEncoding) PrettyPrint(bencodeBytes []byte) ([]byte, error) { return
 func (bencodeEncoding) Color(bencodeBytes []byte) ([]byte, error)       { return bencodeBytes, nil }
 
 func init() {
-	ByName["bencode"] = bencodeEncoding{}
-	ByName["torrent"] = bencodeEncoding{}
+	Register("bencode", bencodeEncoding{})
+	Register("torrent", bencodeEncoding{})
 }

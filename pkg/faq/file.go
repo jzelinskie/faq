@@ -47,7 +47,7 @@ func (info *FileInfo) Path() string {
 }
 
 // OpenFile returns a new FileInfo
-func OpenFile(path string, flags Flags) (*FileInfo, error) {
+func OpenFile(path string) (*FileInfo, error) {
 	path = os.ExpandEnv(path)
 	file, err := os.Open(path)
 	if err != nil {

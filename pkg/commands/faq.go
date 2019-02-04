@@ -12,6 +12,7 @@ import (
 
 	"github.com/jzelinskie/faq/pkg/faq"
 	"github.com/jzelinskie/faq/pkg/flagutil"
+	"github.com/jzelinskie/faq/pkg/formats"
 	"github.com/jzelinskie/faq/pkg/version"
 )
 
@@ -27,12 +28,12 @@ func ExecuteFaqCmd() {
 
 // NewFaqCommand returns a cobra.Command that
 func NewFaqCommand() *cobra.Command {
-	var flags faq.Flags
+	var flags flags
 
 	stringKwargsFlag := flagutil.NewKwargStringFlag(&flags.Kwargs)
-	jsonKwargsFlag := flagutil.NewKwargStringFlag(&flags.Jsonkwargs)
+	jsonKwargsFlag := flagutil.NewKwargJSONFlag(&flags.Jsonkwargs)
 	stringPositionalArgsFlag := flagutil.NewPositionalArgStringFlag(&flags.Args)
-	jsonPositionalArgsFlag := flagutil.NewPositionalArgBytesFlag(&flags.Jsonargs)
+	jsonPositionalArgsFlag := flagutil.NewPositionalArgJSONFlag(&flags.Jsonargs)
 
 	var rootCmd = &cobra.Command{
 		Use:   "faq [flags] [filter string] [files...]",
@@ -80,7 +81,7 @@ How do you pronounce "faq"? Fuck you.
 	return rootCmd
 }
 
-func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
+func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 	if flags.Debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
@@ -89,12 +90,12 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
 		fmt.Println(version.Version)
 		return nil
 	}
+	isTTY := terminal.IsTerminal(int(os.Stdin.Fd()))
 
-	if runtime.GOOS == "windows" {
+	// If stdout isn't an interactive tty, or we're on windows then default to monochrome.
+	if !isTTY || runtime.GOOS == "windows" {
 		flags.Monochrome = true
 	}
-
-	isTTY := terminal.IsTerminal(int(os.Stdin.Fd()))
 
 	// Check to see execution is in an interactive terminal and set the args
 	// and flags as such.
@@ -103,7 +104,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
 		paths   []string
 	)
 
-	var fileInfos []faq.File
+	var files []faq.File
 	if flags.ProgramFile != "" {
 		programBytes, err := ioutil.ReadFile(flags.ProgramFile)
 		if err != nil {
@@ -130,13 +131,76 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags faq.Flags) error {
 
 		// Verify all files exist, and open them.
 		for _, path := range paths {
-			fileInfo, err := faq.OpenFile(path, flags)
+			fileInfo, err := faq.OpenFile(path)
 			if err != nil {
 				return err
 			}
-			fileInfos = append(fileInfos, fileInfo)
+			files = append(files, fileInfo)
 		}
 	}
 
-	return faq.RunFaq(os.Stdout, fileInfos, program, flags)
+	outputWriter := os.Stdin
+	programArgs := faq.ProgramArguments{
+		Args:       flags.Args,
+		Jsonargs:   flags.Jsonargs,
+		Kwargs:     flags.Kwargs,
+		Jsonkwargs: flags.Jsonkwargs,
+	}
+	outputConf := faq.OutputConfig{
+		Raw:    flags.Raw,
+		Pretty: flags.Pretty,
+		Color:  flags.Color && !flags.Monochrome,
+	}
+
+	if flags.ProvideNull {
+		encoder, ok := formats.ByName(flags.OutputFormat)
+		if !ok {
+			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
+		}
+		err := faq.ExecuteProgram(nil, program, programArgs, outputWriter, encoder, outputConf)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if flags.Slurp {
+		if flags.OutputFormat == "" {
+			return fmt.Errorf("must specify --output-format when using --slurp")
+		}
+		encoder, ok := formats.ByName(flags.OutputFormat)
+		if !ok {
+			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
+		}
+		err := faq.SlurpAllFiles(flags.InputFormat, files, program, programArgs, outputWriter, encoder, outputConf)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := faq.ProcessEachFile(flags.InputFormat, files, program, programArgs, outputWriter, flags.OutputFormat, outputConf)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Flags are the configuration flags for faq
+type flags struct {
+	Debug        bool
+	InputFormat  string
+	OutputFormat string
+	ProgramFile  string
+	Raw          bool
+	Color        bool
+	Monochrome   bool
+	Pretty       bool
+	Slurp        bool
+	ProvideNull  bool
+	Args         []string
+	Jsonargs     []interface{}
+	Kwargs       map[string]string
+	Jsonkwargs   map[string]interface{}
+	PrintVersion bool
 }

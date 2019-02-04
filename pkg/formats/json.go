@@ -70,7 +70,7 @@ func (d *jsonDecoder) MarshalJSONBytes() ([]byte, error) {
 }
 
 func init() {
-	ByName["json"] = jsonEncoding{}
-	ByName["js"] = jsonEncoding{}
-	ByName["javascript"] = jsonEncoding{}
+	Register("json", jsonEncoding{})
+	Register("js", jsonEncoding{})
+	Register("javascript", jsonEncoding{})
 }

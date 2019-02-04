@@ -59,6 +59,6 @@ func (d *yamlToJSONDecoder) MarshalJSONBytes() ([]byte, error) {
 }
 
 func init() {
-	ByName["yaml"] = yamlEncoding{}
-	ByName["yml"] = yamlEncoding{}
+	Register("yaml", yamlEncoding{})
+	Register("yml", yamlEncoding{})
 }
