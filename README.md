@@ -34,7 +34,7 @@ jq programs are stable and should be considered a bug if it does not match jq be
 ### Linux
 
 ```sh
-curl -Lo /usr/local/bin/faq https://github.com/jzelinskie/faq/releases/download/0.0.3/faq-linux-amd64
+curl -Lo /usr/local/bin/faq https://github.com/jzelinskie/faq/releases/download/0.0.4/faq-linux-amd64
 chmod +x /usr/local/bin/faq
 ```
 
