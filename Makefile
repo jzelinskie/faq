@@ -37,7 +37,7 @@ endif
 	$(MAKE) build
 
 install:
-	mkdir -p $(DESTDIR)/usr/bin
+	mkdir -p $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(FAQ_BIN) $(DESTDIR)$(bindir)/faq
 
 $(FAQ_BIN): $(GO_FILES)
