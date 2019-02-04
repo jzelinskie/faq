@@ -139,7 +139,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		}
 	}
 
-	outputWriter := os.Stdin
+	outputWriter := os.Stdout
 	programArgs := faq.ProgramArguments{
 		Args:       flags.Args,
 		Jsonargs:   flags.Jsonargs,
