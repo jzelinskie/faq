@@ -26,7 +26,16 @@ func (jsonEncoding) PrettyPrint(jsonBytes []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	return json.MarshalIndent(i, "", "  ")
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	err = enc.Encode(i)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
 
 func (jsonEncoding) Color(jsonBytes []byte) ([]byte, error) {
