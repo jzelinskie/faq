@@ -66,9 +66,10 @@ How do you pronounce "faq"? Fuck you.
 	rootCmd.Flags().StringVarP(&flags.OutputFormat, "output-format", "o", "auto", "output format")
 	rootCmd.Flags().StringVarP(&flags.ProgramFile, "program-file", "F", "", "If specified, read the file provided as the jq program for faq.")
 	rootCmd.Flags().BoolVarP(&flags.Raw, "raw-output", "r", false, "output raw strings, not JSON texts")
-	rootCmd.Flags().BoolVarP(&flags.Color, "color-output", "c", true, "colorize the output")
-	rootCmd.Flags().BoolVarP(&flags.Monochrome, "monochrome-output", "m", false, "monochrome (don't colorize the output)")
+	rootCmd.Flags().BoolVarP(&flags.Color, "color-output", "C", true, "colorize the output")
+	rootCmd.Flags().BoolVarP(&flags.Monochrome, "monochrome-output", "M", false, "monochrome (don't colorize the output)")
 	rootCmd.Flags().BoolVarP(&flags.Pretty, "pretty-output", "p", true, "pretty-printed output")
+	rootCmd.Flags().BoolVarP(&flags.Compact, "compact-output", "c", false, "compact output (don't pretty print the output)")
 	rootCmd.Flags().BoolVarP(&flags.Slurp, "slurp", "s", false, "read (slurp) all inputs into an array; apply filter to it")
 	rootCmd.Flags().BoolVarP(&flags.ProvideNull, "null-input", "n", false, "use `null` as the single input value")
 	rootCmd.Flags().Var(stringPositionalArgsFlag, "args", `Takes a value and adds it to the position arguments list. Values are always strings. Positional arguments are available as $ARGS.positional[]. Specify --args multiple times to pass additional arguments.`)
@@ -161,7 +162,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		Jsonkwargs: flags.Jsonkwargs,
 	}
 	outputConf := faq.OutputConfig{
-		Pretty: flags.Pretty,
+		Pretty: !flags.Compact && flags.Pretty,
 		Color:  color,
 	}
 
@@ -209,6 +210,7 @@ type flags struct {
 	Color        bool
 	Monochrome   bool
 	Pretty       bool
+	Compact      bool
 	Slurp        bool
 	ProvideNull  bool
 	Args         []string
