@@ -174,7 +174,7 @@ bar: false
 				})
 			}
 			var outputBuf bytes.Buffer
-			err := ProcessEachFile(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, testCase.outputFormat, OutputConfig{})
+			err := ProcessEachFile(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, testCase.outputFormat, OutputConfig{}, false)
 			if err != nil {
 				t.Errorf("expected no err, got %#v", err)
 			}
@@ -211,7 +211,7 @@ func TestExecuteProgram(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			encoder, _ := formats.ByName(testCase.outputFormat)
 			var outputBuf bytes.Buffer
-			err := ExecuteProgram(testCase.input, testCase.program, testCase.programArgs, &outputBuf, encoder, OutputConfig{})
+			err := ExecuteProgram(testCase.input, testCase.program, testCase.programArgs, &outputBuf, encoder, OutputConfig{}, false)
 			if err != nil {
 				t.Errorf("expected no err, got %#v", err)
 			}
@@ -321,7 +321,7 @@ cats: dogs
 			}
 			encoder, _ := formats.ByName(testCase.outputFormat)
 			var outputBuf bytes.Buffer
-			err := SlurpAllFiles(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, encoder, OutputConfig{})
+			err := SlurpAllFiles(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, encoder, OutputConfig{}, false)
 			if err != nil {
 				t.Errorf("expected no err, got %#v", err)
 			}

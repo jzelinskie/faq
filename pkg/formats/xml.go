@@ -25,8 +25,6 @@ func (xmlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	return xmap.Xml()
 }
 
-func (xmlEncoding) Raw(xmlBytes []byte) ([]byte, error) { return xmlBytes, nil }
-
 func (xmlEncoding) PrettyPrint(xmlBytes []byte) ([]byte, error) {
 	xmap, err := mxj.NewMapXml(xmlBytes, true)
 	if err != nil {

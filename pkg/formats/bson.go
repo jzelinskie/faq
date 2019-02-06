@@ -26,7 +26,6 @@ func (bsonEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	return bson.Marshal(obj)
 }
 
-func (bsonEncoding) Raw(bsonBytes []byte) ([]byte, error)         { return bsonBytes, nil }
 func (bsonEncoding) PrettyPrint(bsonBytes []byte) ([]byte, error) { return bsonBytes, nil }
 func (bsonEncoding) Color(bsonBytes []byte) ([]byte, error)       { return bsonBytes, nil }
 

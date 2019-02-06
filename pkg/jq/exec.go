@@ -186,7 +186,7 @@ func goJQErrorHandler(id uint64, jv C.jv) {
 // The args and input parameters are expected to be JSON bytes.
 // If the args parameter is not null, an array, or an object, then ErrWrongType
 // is returned.
-func Exec(program string, args, input []byte) ([]string, error) {
+func Exec(program string, args, input []byte, raw bool) ([]string, error) {
 	state, err := C.jq_init()
 	if err != nil {
 		return nil, err
@@ -207,12 +207,12 @@ func Exec(program string, args, input []byte) ([]string, error) {
 	}
 	defer C.jv_free(inputJv)
 
-	return executeProgram(state, program, argsJv, inputJv)
+	return executeProgram(state, program, argsJv, inputJv, raw)
 }
 
 // executeProgram compiles and executes a jq program with the provided
 // arguments and input.
-func executeProgram(state *C.struct_jq_state, program string, args, input C.jv) ([]string, error) {
+func executeProgram(state *C.struct_jq_state, program string, args, input C.jv, raw bool) ([]string, error) {
 	errs := compile(state, program, args)
 	if len(errs) != 0 {
 		err := errs[0]
@@ -222,19 +222,25 @@ func executeProgram(state *C.struct_jq_state, program string, args, input C.jv) 
 		return nil, err
 	}
 
-	return execute(state, input)
+	return execute(state, input, raw)
 }
 
 // execute performs an execution of the previous compiled program.
 // compile() must be called before this function.
-func execute(state *C.struct_jq_state, input C.jv) ([]string, error) {
+func execute(state *C.struct_jq_state, input C.jv, raw bool) ([]string, error) {
 	// I can't figure out where, but it seems like jq_start frees input.
 	C.jq_start(state, C.jv_copy(input), C.int(0))
 
 	results := make([]string, 0)
 	result := C.jq_next(state)
 	for C.jv_is_valid(result) == 1 {
-		results = append(results, dumpJvToGoStr(result))
+		var str string
+		if raw && C.jv_get_kind(result) == C.JV_KIND_STRING {
+			str = C.GoString(C.jv_string_value(result))
+		} else {
+			str = dumpJvToGoStr(result)
+		}
+		results = append(results, str)
 		C.jv_free(result)
 		result = C.jq_next(state)
 	}

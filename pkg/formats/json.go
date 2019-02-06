@@ -19,15 +19,6 @@ func (jsonEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	return jsonBytes, nil
 }
 
-func (jsonEncoding) Raw(jsonBytes []byte) ([]byte, error) {
-	// This is a super naive attempt to just strip off quotes.
-	quoteByte := byte(0x22)
-	if jsonBytes[0] == quoteByte && jsonBytes[len(jsonBytes)-1] == quoteByte {
-		return jsonBytes[1 : len(jsonBytes)-1], nil
-	}
-	return jsonBytes, nil
-}
-
 func (jsonEncoding) PrettyPrint(jsonBytes []byte) ([]byte, error) {
 	var i interface{}
 	err := json.Unmarshal(jsonBytes, &i)
@@ -35,7 +26,16 @@ func (jsonEncoding) PrettyPrint(jsonBytes []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	return json.MarshalIndent(i, "", "  ")
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	err = enc.Encode(i)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
 
 func (jsonEncoding) Color(jsonBytes []byte) ([]byte, error) {

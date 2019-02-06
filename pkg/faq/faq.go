@@ -19,7 +19,7 @@ import (
 
 // ProcessEachFile takes a list of files, and for each, attempts to convert it
 // to a JSON value and runs ExecuteProgram against each.
-func ProcessEachFile(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, outputFormat string, outputConf OutputConfig) error {
+func ProcessEachFile(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, outputFormat string, outputConf OutputConfig, rawOutput bool) error {
 	for _, file := range files {
 		decoder, err := determineDecoder(inputFormat, file)
 		if err != nil {
@@ -48,7 +48,7 @@ func ProcessEachFile(inputFormat string, files []File, program string, programAr
 						return fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
 					}
 
-					err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf)
+					err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf, rawOutput)
 					if err != nil {
 						return err
 					}
@@ -59,7 +59,7 @@ func ProcessEachFile(inputFormat string, files []File, program string, programAr
 					return fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
 				}
 
-				err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf)
+				err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf, rawOutput)
 				if err != nil {
 					return err
 				}
@@ -73,13 +73,13 @@ func ProcessEachFile(inputFormat string, files []File, program string, programAr
 // SlurpAllFiles takes a list of files, and for each, attempts to convert it to
 // a JSON value and appends each JSON value to an array, and passes that array
 // as the input ExecuteProgram.
-func SlurpAllFiles(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, encoder formats.Encoding, outputConf OutputConfig) error {
+func SlurpAllFiles(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, encoder formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
 	data, err := combineJSONFilesToJSONArray(files, inputFormat)
 	if err != nil {
 		return err
 	}
 
-	err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf)
+	err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf, rawOutput)
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func SlurpAllFiles(inputFormat string, files []File, program string, programArgs
 
 // ExecuteProgram takes input, a single JSON value, and runs program via libjq
 // against it, writing the results to outputWriter.
-func ExecuteProgram(input *[]byte, program string, programArgs ProgramArguments, outputWriter io.Writer, encoder formats.Encoding, outputConf OutputConfig) error {
+func ExecuteProgram(input *[]byte, program string, programArgs ProgramArguments, outputWriter io.Writer, encoder formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
 	if input == nil {
 		input = new([]byte)
 		*input = []byte("null")
@@ -100,7 +100,7 @@ func ExecuteProgram(input *[]byte, program string, programArgs ProgramArguments,
 		return err
 	}
 
-	outputs, err := jq.Exec(program, args, *input)
+	outputs, err := jq.Exec(program, args, *input, rawOutput)
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,6 @@ func combineJSONFilesToJSONArray(files []File, inputFormat string) ([]byte, erro
 
 // OutputConfig contains configuration for out to print out values
 type OutputConfig struct {
-	Raw    bool
 	Pretty bool
 	Color  bool
 }
@@ -194,23 +193,16 @@ func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encodin
 		return fmt.Errorf("failed to encode jq program output as %s: %s", outputFormat, err)
 	}
 
-	if !conf.Raw {
-		if conf.Pretty {
-			output, err = encoder.PrettyPrint(output)
-			if err != nil {
-				return fmt.Errorf("failed to encode jq program output as pretty %s: %s", outputFormat, err)
-			}
-		}
-		if conf.Color {
-			output, err = encoder.Color(output)
-			if err != nil {
-				return fmt.Errorf("failed to encode jq program output as color %s: %s", outputFormat, err)
-			}
-		}
-	} else {
-		output, err = encoder.Raw(output)
+	if conf.Pretty {
+		output, err = encoder.PrettyPrint(output)
 		if err != nil {
-			return fmt.Errorf("failed to encode jq program output as raw %s: %s", outputFormat, err)
+			return fmt.Errorf("failed to encode jq program output as pretty %s: %s", outputFormat, err)
+		}
+	}
+	if conf.Color {
+		output, err = encoder.Color(output)
+		if err != nil {
+			return fmt.Errorf("failed to encode jq program output as color %s: %s", outputFormat, err)
 		}
 	}
 

@@ -33,7 +33,6 @@ func (tomlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (tomlEncoding) Raw(tomlBytes []byte) ([]byte, error)         { return tomlBytes, nil }
 func (tomlEncoding) PrettyPrint(tomlBytes []byte) ([]byte, error) { return tomlBytes, nil }
 
 func (tomlEncoding) Color(tomlBytes []byte) ([]byte, error) {

@@ -147,7 +147,6 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		Jsonkwargs: flags.Jsonkwargs,
 	}
 	outputConf := faq.OutputConfig{
-		Raw:    flags.Raw,
 		Pretty: flags.Pretty,
 		Color:  flags.Color && !flags.Monochrome,
 	}
@@ -157,7 +156,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		if !ok {
 			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}
-		err := faq.ExecuteProgram(nil, program, programArgs, outputWriter, encoder, outputConf)
+		err := faq.ExecuteProgram(nil, program, programArgs, outputWriter, encoder, outputConf, flags.Raw)
 		if err != nil {
 			return err
 		}
@@ -172,12 +171,12 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		if !ok {
 			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}
-		err := faq.SlurpAllFiles(flags.InputFormat, files, program, programArgs, outputWriter, encoder, outputConf)
+		err := faq.SlurpAllFiles(flags.InputFormat, files, program, programArgs, outputWriter, encoder, outputConf, flags.Raw)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := faq.ProcessEachFile(flags.InputFormat, files, program, programArgs, outputWriter, flags.OutputFormat, outputConf)
+		err := faq.ProcessEachFile(flags.InputFormat, files, program, programArgs, outputWriter, flags.OutputFormat, outputConf, flags.Raw)
 		if err != nil {
 			return err
 		}
