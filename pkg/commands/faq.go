@@ -97,6 +97,21 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		flags.Monochrome = true
 	}
 
+	outputFile := os.Stdout
+	var color bool
+	// Monochrome is highest precedence
+	if flags.Monochrome {
+		color = false
+	} else if !terminal.IsTerminal(int(outputFile.Fd())) && !cmd.Flags().Changed("color-output") {
+		// If our output is not a terminal then we shouldn't color output
+		// unless it's explicitly been set via the flag.
+		color = false
+	} else {
+		// Use color according to the flag if the flag has been set,
+		// monochromes value (inverted).
+		color = flags.Color && !flags.Monochrome
+	}
+
 	// Check to see execution is in an interactive terminal and set the args
 	// and flags as such.
 	var (
@@ -139,7 +154,6 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		}
 	}
 
-	outputWriter := os.Stdout
 	programArgs := faq.ProgramArguments{
 		Args:       flags.Args,
 		Jsonargs:   flags.Jsonargs,
@@ -148,7 +162,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 	}
 	outputConf := faq.OutputConfig{
 		Pretty: flags.Pretty,
-		Color:  flags.Color && !flags.Monochrome,
+		Color:  color,
 	}
 
 	if flags.ProvideNull {
@@ -156,7 +170,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		if !ok {
 			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}
-		err := faq.ExecuteProgram(nil, program, programArgs, outputWriter, encoder, outputConf, flags.Raw)
+		err := faq.ExecuteProgram(nil, program, programArgs, outputFile, encoder, outputConf, flags.Raw)
 		if err != nil {
 			return err
 		}
@@ -171,12 +185,12 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		if !ok {
 			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}
-		err := faq.SlurpAllFiles(flags.InputFormat, files, program, programArgs, outputWriter, encoder, outputConf, flags.Raw)
+		err := faq.SlurpAllFiles(flags.InputFormat, files, program, programArgs, outputFile, encoder, outputConf, flags.Raw)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := faq.ProcessEachFile(flags.InputFormat, files, program, programArgs, outputWriter, flags.OutputFormat, outputConf, flags.Raw)
+		err := faq.ProcessEachFile(flags.InputFormat, files, program, programArgs, outputFile, flags.OutputFormat, outputConf, flags.Raw)
 		if err != nil {
 			return err
 		}
