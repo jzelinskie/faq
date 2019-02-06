@@ -1,28 +1,6 @@
 # Examples
 
-## Usage
-
-```
-Usage:
-  faq [flags] [filter string] [files...]
-
-Flags:
-      --args positionalArg       Takes a value and adds it to the position arguments list. Values are always strings. Positional arguments are available as $ARGS.positional[]. Specify --args multiple times to pass additional arguments. (default [])
-  -c, --color-output             colorize the output (default true)
-  -h, --help                     help for faq
-  -f, --input-format string      input format (default "auto")
-      --jsonargs positionalArg   Takes a value and adds it to the position arguments list. Values are parsed as JSON values. Positional arguments are available as $ARGS.positional[]. Specify --jsonargs multiple times to pass additional arguments. (default [])
-      --jsonkwargs key=value     Takes a key=value pair, setting $key to the JSON value of <value>: --kwargs foo={"fizz": "buzz"} sets $foo to the json object {"fizz": "buzz"}. Values are parsed as JSON values. Named arguments are also available as $ARGS.named[]. Specify --jsonkwargs multiple times to add more arguments. (default map[])
-      --kwargs key=value         Takes a key=value pair, setting $key to <value>: --kwargs foo=bar sets $foo to "bar". Values are always strings. Named arguments are also available as $ARGS.named[]. Specify --kwargs multiple times to add more arguments. (default map[])
-  -m, --monochrome-output        monochrome (don't colorize the output)
-  -n, --null-input null          use null as the single input value
-  -o, --output-format string     output format (default "auto")
-  -p, --pretty-output            pretty-printed output (default true)
-  -r, --raw-output               output raw strings, not JSON texts
-  -s, --slurp                    read (slurp) all inputs into an array; apply filter to it
-```
-
-## Command-line fu
+## Basic
 
 ### Piping to make something legible
 
@@ -69,6 +47,8 @@ github.com/spf13/cobra
 github.com/zeebo/bencode
 golang.org/x/crypto
 ```
+
+## Advanced
 
 ### Viewing the non-binary parts of a torrent file
 
