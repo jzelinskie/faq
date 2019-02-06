@@ -15,6 +15,7 @@ import (
 
 	"github.com/jzelinskie/faq/pkg/formats"
 	"github.com/jzelinskie/faq/pkg/jq"
+	"github.com/sirupsen/logrus"
 )
 
 // ProcessEachFile takes a list of files, and for each, attempts to convert it
@@ -39,6 +40,7 @@ func ProcessEachFile(inputFormat string, files []File, program string, programAr
 		if len(bytes.TrimSpace(fileBytes)) != 0 {
 			if streamable, ok := decoder.(formats.Streamable); ok {
 				decoder := streamable.NewDecoder(fileBytes)
+				i := 1
 				for {
 					data, err := decoder.MarshalJSONBytes()
 					if err == io.EOF {
@@ -48,10 +50,12 @@ func ProcessEachFile(inputFormat string, files []File, program string, programAr
 						return fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
 					}
 
+					logrus.Debugf("file: %s (item %d), jsonified:\n%s", file.Path(), i, string(data))
 					err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf, rawOutput)
 					if err != nil {
 						return err
 					}
+					i++
 				}
 			} else {
 				data, err := decoder.MarshalJSONBytes(fileBytes)
@@ -59,6 +63,7 @@ func ProcessEachFile(inputFormat string, files []File, program string, programAr
 					return fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
 				}
 
+				logrus.Debugf("file: %s, jsonified:\n%s", file.Path(), string(data))
 				err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf, rawOutput)
 				if err != nil {
 					return err
@@ -78,6 +83,12 @@ func SlurpAllFiles(inputFormat string, files []File, program string, programArgs
 	if err != nil {
 		return err
 	}
+
+	var paths []string
+	for _, f := range files {
+		paths = append(paths, f.Path())
+	}
+	logrus.Debugf("files: %q, jsonified:\n%s", paths, string(data))
 
 	err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf, rawOutput)
 	if err != nil {
