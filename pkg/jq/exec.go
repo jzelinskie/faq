@@ -195,13 +195,17 @@ func Exec(program string, args, input []byte, raw bool) ([]string, error) {
 	}
 	defer C.jq_teardown(&state)
 
-	argsJv := C.jv_parse((*C.char)(unsafe.Pointer(&args[0])))
+	argsPtr := C.CBytes(input)
+	defer C.free(argsPtr)
+	argsJv := C.jv_parse((*C.char)(argsPtr))
 	if C.jv_is_valid(argsJv) == 0 {
 		return nil, errorFromJv(argsJv)
 	}
 	defer C.jv_free(argsJv)
 
-	inputJv := C.jv_parse((*C.char)(unsafe.Pointer(&input[0])))
+	inputPtr := C.CBytes(input)
+	defer C.free(inputPtr)
+	inputJv := C.jv_parse((*C.char)(inputPtr))
 	if C.jv_is_valid(inputJv) == 0 {
 		return nil, errorFromJv(inputJv)
 	}
