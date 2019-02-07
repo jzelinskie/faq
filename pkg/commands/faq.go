@@ -91,25 +91,19 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		fmt.Println(version.Version)
 		return nil
 	}
-	isTTY := terminal.IsTerminal(int(os.Stdin.Fd()))
-
-	// If stdout isn't an interactive tty, or we're on windows then default to monochrome.
-	if !isTTY || runtime.GOOS == "windows" {
-		flags.Monochrome = true
-	}
 
 	outputFile := os.Stdout
 	var color bool
-	// Monochrome is highest precedence
-	if flags.Monochrome {
-		color = false
-	} else if !terminal.IsTerminal(int(outputFile.Fd())) && !cmd.Flags().Changed("color-output") {
-		// If our output is not a terminal then we shouldn't color output
-		// unless it's explicitly been set via the flag.
+	// If monochrome is true, disable color, as it takes higher precedence then
+	// --color-output.
+	// If we're running in Windows, disable color, since it usually doesn't
+	// handle colors correctly.
+	// If the output isn't a TTY, and color hasn't been explicitly set via the
+	// flag, disable color.
+	// otherwise, use to the flags values to determine if color is enabled.
+	if flags.Monochrome || runtime.GOOS == "windows" || !terminal.IsTerminal(int(outputFile.Fd())) && !cmd.Flags().Changed("color-output") {
 		color = false
 	} else {
-		// Use color according to the flag if the flag has been set,
-		// monochromes value (inverted).
 		color = flags.Color && !flags.Monochrome
 	}
 
@@ -137,7 +131,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 	if flags.ProvideNull {
 		paths = nil
 	} else {
-		if !isTTY && len(args) == 0 {
+		if !terminal.IsTerminal(int(os.Stdin.Fd())) && len(args) == 0 {
 			paths = []string{"/dev/stdin"}
 		} else if len(args) != 0 {
 			paths = args
