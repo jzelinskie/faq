@@ -16,6 +16,7 @@ void set_jq_error_cb_default(jq_state *jq);
 import "C"
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"reflect"
 	"unsafe"
@@ -195,17 +196,17 @@ func Exec(program string, args, input []byte, raw bool) ([]string, error) {
 	}
 	defer C.jq_teardown(&state)
 
-	argsPtr := C.CBytes(input)
-	defer C.free(argsPtr)
-	argsJv := C.jv_parse((*C.char)(argsPtr))
+	argsPtr := C.CString(string(args))
+	defer C.free(unsafe.Pointer(argsPtr))
+	argsJv := C.jv_parse(argsPtr)
 	if C.jv_is_valid(argsJv) == 0 {
 		return nil, errorFromJv(argsJv)
 	}
 	defer C.jv_free(argsJv)
 
-	inputPtr := C.CBytes(input)
-	defer C.free(inputPtr)
-	inputJv := C.jv_parse((*C.char)(inputPtr))
+	inputPtr := C.CString(string(input))
+	defer C.free(unsafe.Pointer(inputPtr))
+	inputJv := C.jv_parse(inputPtr)
 	if C.jv_is_valid(inputJv) == 0 {
 		return nil, errorFromJv(inputJv)
 	}
@@ -285,7 +286,13 @@ func collectErrors(state *C.struct_jq_state, fn func()) []error {
 
 // ErrWrongType is returned from functions when an assertion about the type of
 // a value fails.
-var ErrWrongType = errors.New("the provided value was not the required type")
+type ErrWrongType struct {
+	message string
+}
+
+func (e *ErrWrongType) Error() string {
+	return e.message
+}
 
 // compile prepares a jq program for execution.
 // The provided args must be KindArray or KindObject.
@@ -293,7 +300,7 @@ func compile(state *C.struct_jq_state, program string, args C.jv) []error {
 	// This check is done in libjq, but it's faster to check here and bail early.
 	kind := C.jv_get_kind(args)
 	if !(kind == C.JV_KIND_ARRAY || kind == C.JV_KIND_OBJECT) {
-		return []error{ErrWrongType}
+		return []error{&ErrWrongType{fmt.Sprintf("args was not the required type, got %s, expected: %s or %s", jvKindName(kind), jvKindName(C.JV_KIND_OBJECT), jvKindName(C.JV_KIND_ARRAY))}}
 	}
 
 	return collectErrors(state, func() {
@@ -303,4 +310,8 @@ func compile(state *C.struct_jq_state, program string, args C.jv) []error {
 		// jq_compile_args frees the args JV, so we provide a copy for sanity.
 		C.jq_compile_args(state, cprog, C.jv_copy(args))
 	})
+}
+
+func jvKindName(kind C.jv_kind) string {
+	return C.GoString(C.jv_kind_name(kind))
 }
