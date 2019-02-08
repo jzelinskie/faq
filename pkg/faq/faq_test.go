@@ -16,6 +16,7 @@ func TestProcessEachFile(t *testing.T) {
 		inputFormat       string
 		outputFormat      string
 		expectedOutput    string
+		raw               bool
 	}{
 		{
 			name:              "empty file simple program",
@@ -160,6 +161,28 @@ bar: false
 			inputFormat:    "json",
 			outputFormat:   "json",
 		},
+		{
+			name:    "single file empty input raw output",
+			program: ".",
+			inputFileContents: []string{
+				``,
+			},
+			expectedOutput: "",
+			inputFormat:    "json",
+			outputFormat:   "json",
+			raw:            true,
+		},
+		{
+			name:    "single file empty string input raw output",
+			program: ".",
+			inputFileContents: []string{
+				`""`,
+			},
+			expectedOutput: "\n",
+			inputFormat:    "json",
+			outputFormat:   "json",
+			raw:            true,
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -174,44 +197,7 @@ bar: false
 				})
 			}
 			var outputBuf bytes.Buffer
-			err := ProcessEachFile(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, testCase.outputFormat, OutputConfig{}, false)
-			if err != nil {
-				t.Errorf("expected no err, got %#v", err)
-			}
-
-			output := outputBuf.String()
-			if output != testCase.expectedOutput {
-				t.Errorf("incorrect output expected=%s, got=%s", testCase.expectedOutput, output)
-			}
-		})
-	}
-}
-
-func TestExecuteProgram(t *testing.T) {
-	testCases := []struct {
-		name           string
-		program        string
-		input          *[]byte
-		inputFormat    string
-		outputFormat   string
-		programArgs    ProgramArguments
-		expectedOutput string
-	}{
-		{
-			name:           "null input simple program",
-			program:        ".",
-			input:          nil,
-			expectedOutput: "null\n",
-			inputFormat:    "json",
-			outputFormat:   "json",
-		},
-	}
-	for _, testCase := range testCases {
-		testCase := testCase
-		t.Run(testCase.name, func(t *testing.T) {
-			encoder, _ := formats.ByName(testCase.outputFormat)
-			var outputBuf bytes.Buffer
-			err := ExecuteProgram(testCase.input, testCase.program, testCase.programArgs, &outputBuf, encoder, OutputConfig{}, false)
+			err := ProcessEachFile(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, testCase.outputFormat, OutputConfig{}, testCase.raw)
 			if err != nil {
 				t.Errorf("expected no err, got %#v", err)
 			}
@@ -232,6 +218,7 @@ func TestSlurpAllFiles(t *testing.T) {
 		inputFormat       string
 		outputFormat      string
 		expectedOutput    string
+		raw               bool
 	}{
 
 		{
@@ -307,6 +294,28 @@ cats: dogs
 			inputFormat:  "yaml",
 			outputFormat: "json",
 		},
+		{
+			name:    "single file empty input raw output",
+			program: ".",
+			inputFileContents: []string{
+				``,
+			},
+			expectedOutput: "[]\n",
+			inputFormat:    "json",
+			outputFormat:   "json",
+			raw:            true,
+		},
+		{
+			name:    "single file empty string input raw output",
+			program: ".",
+			inputFileContents: []string{
+				`""`,
+			},
+			expectedOutput: "[\"\"]\n",
+			inputFormat:    "json",
+			outputFormat:   "json",
+			raw:            true,
+		},
 	}
 	for _, testCase := range testCases {
 		testCase := testCase
@@ -321,7 +330,45 @@ cats: dogs
 			}
 			encoder, _ := formats.ByName(testCase.outputFormat)
 			var outputBuf bytes.Buffer
-			err := SlurpAllFiles(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, encoder, OutputConfig{}, false)
+			err := SlurpAllFiles(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, encoder, OutputConfig{}, testCase.raw)
+			if err != nil {
+				t.Errorf("expected no err, got %#v", err)
+			}
+
+			output := outputBuf.String()
+			if output != testCase.expectedOutput {
+				t.Errorf("incorrect output expected=%s, got=%s", testCase.expectedOutput, output)
+			}
+		})
+	}
+}
+
+func TestExecuteProgram(t *testing.T) {
+	testCases := []struct {
+		name           string
+		program        string
+		input          *[]byte
+		inputFormat    string
+		outputFormat   string
+		programArgs    ProgramArguments
+		expectedOutput string
+		raw            bool
+	}{
+		{
+			name:           "null input simple program",
+			program:        ".",
+			input:          nil,
+			expectedOutput: "null\n",
+			inputFormat:    "json",
+			outputFormat:   "json",
+		},
+	}
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			encoder, _ := formats.ByName(testCase.outputFormat)
+			var outputBuf bytes.Buffer
+			err := ExecuteProgram(testCase.input, testCase.program, testCase.programArgs, &outputBuf, encoder, OutputConfig{}, testCase.raw)
 			if err != nil {
 				t.Errorf("expected no err, got %#v", err)
 			}
