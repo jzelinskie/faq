@@ -3,22 +3,61 @@ package formats
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
 
 	"github.com/zeebo/bencode"
 )
 
+var (
+	_ Encoding = bencodeEncoding{}
+	_ Decoder  = &bencodeDecoder{}
+	_ Encoder  = &bencodeEncoder{}
+)
+
 type bencodeEncoding struct{}
 
-func (bencodeEncoding) MarshalJSONBytes(bencodedBytes []byte) ([]byte, error) {
+func (bencodeEncoding) NewDecoder(r io.Reader) Decoder {
+	return &bencodeDecoder{r}
+}
+
+func (e bencodeEncoding) NewEncoder(w io.Writer) Encoder {
+	return &bencodeEncoder{w}
+}
+
+type bencodeDecoder struct {
+	r io.Reader
+}
+
+func (d bencodeDecoder) MarshalJSONBytes() ([]byte, error) {
+	bencodeBytes, err := ioutil.ReadAll(d.r)
+	if err != nil {
+		return nil, err
+	}
+
 	var obj interface{}
-	err := bencode.DecodeBytes(bencodedBytes, &obj)
+	err = bencode.DecodeBytes(bencodeBytes, &obj)
 	if err != nil {
 		return nil, err
 	}
 	return json.Marshal(obj)
 }
 
-func (bencodeEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
+type bencodeEncoder struct {
+	w io.Writer
+}
+
+func (e bencodeEncoder) UnmarshalJSONBytes(jsonBytes []byte, color, pretty bool) error {
+	out, err := internalEncode(e, jsonBytes, color, pretty)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(e.w, string(out))
+	return nil
+}
+
+func (bencodeEncoder) unmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	decoder := json.NewDecoder(bytes.NewBuffer(jsonBytes))
 	decoder.UseNumber()
 
@@ -30,8 +69,8 @@ func (bencodeEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	return bencode.EncodeBytes(obj)
 }
 
-func (bencodeEncoding) PrettyPrint(bencodeBytes []byte) ([]byte, error) { return bencodeBytes, nil }
-func (bencodeEncoding) Color(bencodeBytes []byte) ([]byte, error)       { return bencodeBytes, nil }
+func (bencodeEncoder) prettyPrint(bencodeBytes []byte) ([]byte, error) { return bencodeBytes, nil }
+func (bencodeEncoder) color(bencodeBytes []byte) ([]byte, error)       { return bencodeBytes, nil }
 
 func init() {
 	Register("bencode", bencodeEncoding{})

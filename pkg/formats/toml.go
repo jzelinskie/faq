@@ -3,23 +3,61 @@ package formats
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
 
 	"github.com/BurntSushi/toml"
 	"github.com/alecthomas/chroma/quick"
 )
 
+var (
+	_ Encoding = tomlEncoding{}
+	_ Decoder  = &tomlDecoder{}
+	_ Encoder  = &tomlEncoder{}
+)
+
 type tomlEncoding struct{}
 
-func (tomlEncoding) MarshalJSONBytes(tomlBytes []byte) ([]byte, error) {
+func (tomlEncoding) NewDecoder(r io.Reader) Decoder {
+	return &tomlDecoder{r}
+}
+
+func (e tomlEncoding) NewEncoder(w io.Writer) Encoder {
+	return &tomlEncoder{w}
+}
+
+type tomlDecoder struct {
+	r io.Reader
+}
+
+func (d tomlDecoder) MarshalJSONBytes() ([]byte, error) {
+	tomlBytes, err := ioutil.ReadAll(d.r)
+	if err != nil {
+		return nil, err
+	}
 	var obj interface{}
-	err := toml.Unmarshal(tomlBytes, &obj)
+	err = toml.Unmarshal(tomlBytes, &obj)
 	if err != nil {
 		return nil, err
 	}
 	return json.Marshal(obj)
 }
 
-func (tomlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
+type tomlEncoder struct {
+	w io.Writer
+}
+
+func (e tomlEncoder) UnmarshalJSONBytes(jsonBytes []byte, color, pretty bool) error {
+	out, err := internalEncode(e, jsonBytes, color, pretty)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(e.w, string(out))
+	return nil
+}
+
+func (tomlEncoder) unmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	var obj interface{}
 	err := json.Unmarshal(jsonBytes, &obj)
 	if err != nil {
@@ -33,9 +71,9 @@ func (tomlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (tomlEncoding) PrettyPrint(tomlBytes []byte) ([]byte, error) { return tomlBytes, nil }
+func (tomlEncoder) prettyPrint(tomlBytes []byte) ([]byte, error) { return tomlBytes, nil }
 
-func (tomlEncoding) Color(tomlBytes []byte) ([]byte, error) {
+func (tomlEncoder) color(tomlBytes []byte) ([]byte, error) {
 	var b bytes.Buffer
 	if err := quick.Highlight(&b, string(tomlBytes), "toml", ChromaFormatter(), ChromaStyle()); err != nil {
 		return nil, err

@@ -3,42 +3,38 @@ package formats
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 
 	"github.com/alecthomas/chroma/quick"
 	"github.com/ghodss/yaml"
 	goyaml "gopkg.in/yaml.v2"
 )
 
+var (
+	_ Encoding = yamlEncoding{}
+	_ Decoder  = &yamlDecoder{}
+	_ Encoder  = &yamlEncoder{}
+)
+
+const yamlSeparator = "---"
+
 type yamlEncoding struct{}
 
-func (yamlEncoding) MarshalJSONBytes(yamlBytes []byte) ([]byte, error) {
-	return yaml.YAMLToJSON(yamlBytes)
+func (yamlEncoding) NewDecoder(r io.Reader) Decoder {
+	decoder := goyaml.NewDecoder(r)
+	return &yamlDecoder{decoder}
 }
 
-func (yamlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
-	return yaml.JSONToYAML(jsonBytes)
+func (e yamlEncoding) NewEncoder(w io.Writer) Encoder {
+	return &yamlEncoder{w, false}
 }
 
-func (yamlEncoding) PrettyPrint(yamlBytes []byte) ([]byte, error) { return yamlBytes, nil }
-
-func (yamlEncoding) Color(yamlBytes []byte) ([]byte, error) {
-	var b bytes.Buffer
-	if err := quick.Highlight(&b, string(yamlBytes), "yaml", ChromaFormatter(), ChromaStyle()); err != nil {
-		return nil, err
-	}
-	return b.Bytes(), nil
-}
-
-func (yamlEncoding) NewDecoder(yamlBytes []byte) ToJSONDecoder {
-	decoder := goyaml.NewDecoder(bytes.NewBuffer(yamlBytes))
-	return &yamlToJSONDecoder{decoder}
-}
-
-type yamlToJSONDecoder struct {
+type yamlDecoder struct {
 	decoder *goyaml.Decoder
 }
 
-func (d *yamlToJSONDecoder) MarshalJSONBytes() ([]byte, error) {
+func (d *yamlDecoder) MarshalJSONBytes() ([]byte, error) {
 	var tmp interface{}
 	err := d.decoder.Decode(&tmp)
 	if err != nil {
@@ -55,6 +51,39 @@ func (d *yamlToJSONDecoder) MarshalJSONBytes() ([]byte, error) {
 		return nil, err
 	}
 	return b, nil
+}
+
+type yamlEncoder struct {
+	w        io.Writer
+	writeSep bool
+}
+
+func (e *yamlEncoder) UnmarshalJSONBytes(jsonBytes []byte, color, pretty bool) error {
+	if e.writeSep {
+		fmt.Fprintln(e.w, yamlSeparator)
+	}
+	out, err := internalEncode(e, jsonBytes, color, pretty)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(e.w, string(out))
+
+	e.writeSep = true
+	return nil
+}
+
+func (yamlEncoder) unmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
+	return yaml.JSONToYAML(jsonBytes)
+}
+
+func (yamlEncoder) prettyPrint(yamlBytes []byte) ([]byte, error) { return yamlBytes, nil }
+
+func (yamlEncoder) color(yamlBytes []byte) ([]byte, error) {
+	var b bytes.Buffer
+	if err := quick.Highlight(&b, string(yamlBytes), "yaml", ChromaFormatter(), ChromaStyle()); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
 }
 
 func init() {
