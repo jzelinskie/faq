@@ -198,22 +198,25 @@ type OutputConfig struct {
 }
 
 func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encoding, conf OutputConfig) error {
-	outputFormat := formats.ToName(encoder)
-	output, err := encoder.UnmarshalJSONBytes([]byte(jqOutput))
-	if err != nil {
-		return fmt.Errorf("failed to encode jq program output as %s: %s", outputFormat, err)
-	}
-
-	if conf.Pretty {
-		output, err = encoder.PrettyPrint(output)
+	var output []byte
+	if jqOutput != "" {
+		var err error
+		output, err = encoder.UnmarshalJSONBytes([]byte(jqOutput))
 		if err != nil {
-			return fmt.Errorf("failed to encode jq program output as pretty %s: %s", outputFormat, err)
+			return fmt.Errorf("failed to encode jq program output as %s: %s", formats.ToName(encoder), err)
 		}
-	}
-	if conf.Color {
-		output, err = encoder.Color(output)
-		if err != nil {
-			return fmt.Errorf("failed to encode jq program output as color %s: %s", outputFormat, err)
+
+		if conf.Pretty {
+			output, err = encoder.PrettyPrint(output)
+			if err != nil {
+				return fmt.Errorf("failed to encode jq program output as pretty %s: %s", formats.ToName(encoder), err)
+			}
+		}
+		if conf.Color {
+			output, err = encoder.Color(output)
+			if err != nil {
+				return fmt.Errorf("failed to encode jq program output as color %s: %s", formats.ToName(encoder), err)
+			}
 		}
 	}
 
