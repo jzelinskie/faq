@@ -218,6 +218,7 @@ func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encodin
 				return fmt.Errorf("failed to encode jq program output as color %s: %s", formats.ToName(encoder), err)
 			}
 		}
+		output = bytes.TrimSuffix(output, []byte("\n"))
 	}
 
 	fmt.Fprintln(outputWriter, string(output))
