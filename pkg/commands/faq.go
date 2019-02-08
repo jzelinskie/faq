@@ -130,6 +130,13 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 
 	if flags.ProvideNull {
 		paths = nil
+		if flags.InputFormat == "auto" {
+			flags.InputFormat = "json"
+		}
+		// Set output format to json if not explicitly set.
+		if !cmd.Flags().Changed("output-format") {
+			flags.OutputFormat = "json"
+		}
 	} else {
 		if !terminal.IsTerminal(int(os.Stdin.Fd())) && len(args) == 0 {
 			paths = []string{"/dev/stdin"}
