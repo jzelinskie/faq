@@ -22,6 +22,8 @@ func TestProcessEachFile(t *testing.T) {
 			name:              "empty file simple program",
 			program:           ".",
 			inputFileContents: []string{},
+			inputFormat:       "json",
+			outputFormat:      "json",
 		},
 		{
 			name:    "single file empty object simple program",
@@ -196,8 +198,14 @@ bar: false
 					data: []byte(fileContent),
 				})
 			}
+
+			encoding, ok := formats.ByName(testCase.outputFormat)
+			if !ok {
+				t.Errorf("invalid format: %s", testCase.outputFormat)
+			}
+
 			var outputBuf bytes.Buffer
-			err := ProcessEachFile(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, testCase.outputFormat, OutputConfig{}, testCase.raw)
+			err := ProcessEachFile(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, encoding, OutputConfig{}, testCase.raw)
 			if err != nil {
 				t.Errorf("expected no err, got %#v", err)
 			}
@@ -368,7 +376,7 @@ func TestExecuteProgram(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			encoder, _ := formats.ByName(testCase.outputFormat)
 			var outputBuf bytes.Buffer
-			err := ExecuteProgram(testCase.input, testCase.program, testCase.programArgs, &outputBuf, encoder, OutputConfig{}, testCase.raw)
+			err := ProcessInput(testCase.input, testCase.program, testCase.programArgs, &outputBuf, encoder, OutputConfig{}, testCase.raw)
 			if err != nil {
 				t.Errorf("expected no err, got %#v", err)
 			}

@@ -2,14 +2,40 @@ package formats
 
 import (
 	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
 
 	"github.com/alecthomas/chroma/quick"
 	"github.com/clbanning/mxj"
 )
 
+var (
+	_ Encoding = xmlEncoding{}
+	_ Decoder  = &xmlDecoder{}
+	_ Encoder  = &xmlEncoder{}
+)
+
 type xmlEncoding struct{}
 
-func (xmlEncoding) MarshalJSONBytes(xmlBytes []byte) ([]byte, error) {
+func (xmlEncoding) NewDecoder(r io.Reader) Decoder {
+	return &xmlDecoder{r}
+}
+
+func (e xmlEncoding) NewEncoder(w io.Writer) Encoder {
+	return &xmlEncoder{w}
+}
+
+type xmlDecoder struct {
+	r io.Reader
+}
+
+func (d xmlDecoder) MarshalJSONBytes() ([]byte, error) {
+	xmlBytes, err := ioutil.ReadAll(d.r)
+	if err != nil {
+		return nil, err
+	}
+
 	xmap, err := mxj.NewMapXml(xmlBytes, true)
 	if err != nil {
 		return nil, err
@@ -17,7 +43,20 @@ func (xmlEncoding) MarshalJSONBytes(xmlBytes []byte) ([]byte, error) {
 	return xmap.Json()
 }
 
-func (xmlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
+type xmlEncoder struct {
+	w io.Writer
+}
+
+func (e xmlEncoder) UnmarshalJSONBytes(jsonBytes []byte, color, pretty bool) error {
+	out, err := internalEncode(e, jsonBytes, color, pretty)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(e.w, string(out))
+	return nil
+}
+
+func (xmlEncoder) unmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	xmap, err := mxj.NewMapJson(jsonBytes)
 	if err != nil {
 		return nil, err
@@ -25,7 +64,7 @@ func (xmlEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	return xmap.Xml()
 }
 
-func (xmlEncoding) PrettyPrint(xmlBytes []byte) ([]byte, error) {
+func (xmlEncoder) prettyPrint(xmlBytes []byte) ([]byte, error) {
 	xmap, err := mxj.NewMapXml(xmlBytes, true)
 	if err != nil {
 		return nil, err
@@ -34,7 +73,7 @@ func (xmlEncoding) PrettyPrint(xmlBytes []byte) ([]byte, error) {
 	return xmap.XmlIndent("", "  ")
 }
 
-func (xmlEncoding) Color(xmlBytes []byte) ([]byte, error) {
+func (xmlEncoder) color(xmlBytes []byte) ([]byte, error) {
 	var b bytes.Buffer
 	if err := quick.Highlight(&b, string(xmlBytes), "xml", ChromaFormatter(), ChromaStyle()); err != nil {
 		return nil, err

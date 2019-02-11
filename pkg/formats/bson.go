@@ -2,22 +2,61 @@ package formats
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
 
 	"github.com/globalsign/mgo/bson"
 )
 
+var (
+	_ Encoding = bsonEncoding{}
+	_ Decoder  = &bsonDecoder{}
+	_ Encoder  = &bsonEncoder{}
+)
+
 type bsonEncoding struct{}
 
-func (bsonEncoding) MarshalJSONBytes(bsonBytes []byte) ([]byte, error) {
+func (bsonEncoding) NewDecoder(r io.Reader) Decoder {
+	return &bsonDecoder{r}
+}
+
+func (e bsonEncoding) NewEncoder(w io.Writer) Encoder {
+	return &bsonEncoder{w}
+}
+
+type bsonDecoder struct {
+	r io.Reader
+}
+
+func (d bsonDecoder) MarshalJSONBytes() ([]byte, error) {
+	bsonBytes, err := ioutil.ReadAll(d.r)
+	if err != nil {
+		return nil, err
+	}
+
 	var obj interface{}
-	err := bson.Unmarshal(bsonBytes, &obj)
+	err = bson.Unmarshal(bsonBytes, &obj)
 	if err != nil {
 		return nil, err
 	}
 	return json.Marshal(obj)
 }
 
-func (bsonEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
+type bsonEncoder struct {
+	w io.Writer
+}
+
+func (e bsonEncoder) UnmarshalJSONBytes(jsonBytes []byte, color, pretty bool) error {
+	out, err := internalEncode(e, jsonBytes, color, pretty)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(e.w, string(out))
+	return nil
+}
+
+func (bsonEncoder) unmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	var obj interface{}
 	err := json.Unmarshal(jsonBytes, &obj)
 	if err != nil {
@@ -26,8 +65,8 @@ func (bsonEncoding) UnmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
 	return bson.Marshal(obj)
 }
 
-func (bsonEncoding) PrettyPrint(bsonBytes []byte) ([]byte, error) { return bsonBytes, nil }
-func (bsonEncoding) Color(bsonBytes []byte) ([]byte, error)       { return bsonBytes, nil }
+func (bsonEncoder) prettyPrint(bsonBytes []byte) ([]byte, error) { return bsonBytes, nil }
+func (bsonEncoder) color(bsonBytes []byte) ([]byte, error)       { return bsonBytes, nil }
 
 func init() {
 	Register("bson", bsonEncoding{})

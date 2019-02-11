@@ -20,14 +20,10 @@ import (
 
 // ProcessEachFile takes a list of files, and for each, attempts to convert it
 // to a JSON value and runs ExecuteProgram against each.
-func ProcessEachFile(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, outputFormat string, outputConf OutputConfig, rawOutput bool) error {
-	for _, file := range files {
-		decoder, err := determineDecoder(inputFormat, file)
-		if err != nil {
-			return err
-		}
-
-		encoder, err := determineEncoder(outputFormat, decoder)
+func ProcessEachFile(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, outputEncoding formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
+	encoder := outputEncoding.NewEncoder(outputWriter)
+	for fileNum, file := range files {
+		decoderEncoding, err := determineEncoding(inputFormat, file)
 		if err != nil {
 			return err
 		}
@@ -37,37 +33,26 @@ func ProcessEachFile(inputFormat string, files []File, program string, programAr
 			return err
 		}
 
-		if len(bytes.TrimSpace(fileBytes)) != 0 {
-			if streamable, ok := decoder.(formats.Streamable); ok {
-				decoder := streamable.NewDecoder(fileBytes)
-				i := 1
-				for {
-					data, err := decoder.MarshalJSONBytes()
-					if err == io.EOF {
-						break
-					}
-					if err != nil {
-						return fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
-					}
+		decoder := decoderEncoding.NewDecoder(bytes.NewBuffer(fileBytes))
 
-					logrus.Debugf("file: %s (item %d), jsonified:\n%s", file.Path(), i, string(data))
-					err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf, rawOutput)
-					if err != nil {
-						return err
-					}
-					i++
+		if len(bytes.TrimSpace(fileBytes)) != 0 {
+			itemNum := 1
+			for {
+				data, err := decoder.MarshalJSONBytes()
+				if err == io.EOF {
+					break
 				}
-			} else {
-				data, err := decoder.MarshalJSONBytes(fileBytes)
 				if err != nil {
 					return fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
 				}
 
-				logrus.Debugf("file: %s, jsonified:\n%s", file.Path(), string(data))
-				err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf, rawOutput)
+				logrus.Debugf("file: %s (item %d), jsonified:\n%s", file.Path(), fileNum, string(data))
+
+				err = processInput(&data, program, programArgs, encoder, outputConf, rawOutput)
 				if err != nil {
 					return err
 				}
+				itemNum++
 			}
 		}
 	}
@@ -78,7 +63,7 @@ func ProcessEachFile(inputFormat string, files []File, program string, programAr
 // SlurpAllFiles takes a list of files, and for each, attempts to convert it to
 // a JSON value and appends each JSON value to an array, and passes that array
 // as the input ExecuteProgram.
-func SlurpAllFiles(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, encoder formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
+func SlurpAllFiles(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, encoding formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
 	data, err := combineJSONFilesToJSONArray(files, inputFormat)
 	if err != nil {
 		return err
@@ -90,17 +75,36 @@ func SlurpAllFiles(inputFormat string, files []File, program string, programArgs
 	}
 	logrus.Debugf("files: %q, jsonified:\n%s", paths, string(data))
 
-	err = ExecuteProgram(&data, program, programArgs, outputWriter, encoder, outputConf, rawOutput)
+	encoder := encoding.NewEncoder(outputWriter)
+	return processInput(&data, program, programArgs, encoder, outputConf, rawOutput)
+}
+
+// ProcessInput takes input, a single JSON value, and runs program via libjq
+// against it, writing the results to outputWriter.
+func ProcessInput(input *[]byte, program string, programArgs ProgramArguments, outputWriter io.Writer, encoding formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
+	encoder := encoding.NewEncoder(outputWriter)
+	return processInput(input, program, programArgs, encoder, outputConf, rawOutput)
+}
+
+func processInput(input *[]byte, program string, programArgs ProgramArguments, encoder formats.Encoder, outputConf OutputConfig, rawOutput bool) error {
+	outputs, err := ExecuteProgram(input, program, programArgs, rawOutput)
 	if err != nil {
 		return err
+	}
+
+	for _, output := range outputs {
+		err := encoder.UnmarshalJSONBytes([]byte(output), outputConf.Color, outputConf.Pretty)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 // ExecuteProgram takes input, a single JSON value, and runs program via libjq
-// against it, writing the results to outputWriter.
-func ExecuteProgram(input *[]byte, program string, programArgs ProgramArguments, outputWriter io.Writer, encoder formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
+// against it, returning the results.
+func ExecuteProgram(input *[]byte, program string, programArgs ProgramArguments, rawOutput bool) ([]string, error) {
 	if input == nil {
 		input = new([]byte)
 		*input = []byte("null")
@@ -108,22 +112,10 @@ func ExecuteProgram(input *[]byte, program string, programArgs ProgramArguments,
 
 	args, err := marshalJqArgs(*input, programArgs)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	outputs, err := jq.Exec(program, args, *input, rawOutput)
-	if err != nil {
-		return err
-	}
-
-	for _, output := range outputs {
-		err := printValue(output, outputWriter, encoder, outputConf)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return jq.Exec(program, args, *input, rawOutput)
 }
 
 func combineJSONFilesToJSONArray(files []File, inputFormat string) ([]byte, error) {
@@ -134,7 +126,7 @@ func combineJSONFilesToJSONArray(files []File, inputFormat string) ([]byte, erro
 
 	// iterate over each file, appending it's contents to an array
 	for i, file := range files {
-		decoder, err := determineDecoder(inputFormat, file)
+		encoding, err := determineEncoding(inputFormat, file)
 		if err != nil {
 			return nil, err
 		}
@@ -144,46 +136,32 @@ func combineJSONFilesToJSONArray(files []File, inputFormat string) ([]byte, erro
 			return nil, err
 		}
 
-		if streamable, ok := decoder.(formats.Streamable); ok {
-			decoder := streamable.NewDecoder(fileBytes)
-			var dataList [][]byte
-			for {
-				data, err := decoder.MarshalJSONBytes()
-				if err == io.EOF {
-					break
-				}
-				if err != nil {
-					return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
-				}
-				if len(bytes.TrimSpace(data)) != 0 {
-					dataList = append(dataList, data)
-				}
+		decoder := encoding.NewDecoder(bytes.NewBuffer(fileBytes))
+		var dataList [][]byte
+		for {
+			data, err := decoder.MarshalJSONBytes()
+			if err == io.EOF {
+				break
 			}
-			// for each json value in dataList, write it, plus a comma after
-			// it, as long it isn't the last item in dataList
-			for j, data := range dataList {
-				buf.Write(data)
-				if j != len(dataList)-1 {
-					buf.WriteRune(',')
-				}
-			}
-			// append a comma between each file
-			if len(dataList) != 0 && i != len(files)-1 {
-				buf.WriteRune(',')
-			}
-		} else {
-			data, err := decoder.MarshalJSONBytes(fileBytes)
 			if err != nil {
 				return nil, fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
 			}
 			if len(bytes.TrimSpace(data)) != 0 {
-				buf.Write(data)
-				if i != len(files)-1 {
-					buf.WriteRune(',')
-				}
+				dataList = append(dataList, data)
 			}
 		}
-
+		// for each json value in dataList, write it, plus a comma after
+		// it, as long it isn't the last item in dataList
+		for j, data := range dataList {
+			buf.Write(data)
+			if j != len(dataList)-1 {
+				buf.WriteRune(',')
+			}
+		}
+		// append a comma between each file
+		if len(dataList) != 0 && i != len(files)-1 {
+			buf.WriteRune(',')
+		}
 	}
 	// append the last array bracket
 	buf.WriteRune(']')
@@ -195,34 +173,6 @@ func combineJSONFilesToJSONArray(files []File, inputFormat string) ([]byte, erro
 type OutputConfig struct {
 	Pretty bool
 	Color  bool
-}
-
-func printValue(jqOutput string, outputWriter io.Writer, encoder formats.Encoding, conf OutputConfig) error {
-	var output []byte
-	if jqOutput != "" {
-		var err error
-		output, err = encoder.UnmarshalJSONBytes([]byte(jqOutput))
-		if err != nil {
-			return fmt.Errorf("failed to encode jq program output as %s: %s", formats.ToName(encoder), err)
-		}
-
-		if conf.Pretty {
-			output, err = encoder.PrettyPrint(output)
-			if err != nil {
-				return fmt.Errorf("failed to encode jq program output as pretty %s: %s", formats.ToName(encoder), err)
-			}
-		}
-		if conf.Color {
-			output, err = encoder.Color(output)
-			if err != nil {
-				return fmt.Errorf("failed to encode jq program output as color %s: %s", formats.ToName(encoder), err)
-			}
-		}
-		output = bytes.TrimSuffix(output, []byte("\n"))
-	}
-
-	fmt.Fprintln(outputWriter, string(output))
-	return nil
 }
 
 // ProgramArguments contains the arguments to a JQ program
@@ -259,39 +209,26 @@ func marshalJqArgs(jsonBytes []byte, jqArgs ProgramArguments) ([]byte, error) {
 	return json.Marshal(programArgs)
 }
 
-func determineDecoder(inputFormat string, file File) (formats.Encoding, error) {
-	var decoder formats.Encoding
+func determineEncoding(format string, file File) (formats.Encoding, error) {
+	var encoding formats.Encoding
 	var err error
-	if inputFormat == "auto" {
-		decoder, err = detectFormat(file)
+	if format == "auto" {
+		encoding, err = detectFormat(file)
 	} else {
 		var ok bool
-		decoder, ok = formats.ByName(inputFormat)
+		encoding, ok = formats.ByName(format)
 		if !ok {
-			err = fmt.Errorf("no supported format found named %s", inputFormat)
+			err = fmt.Errorf("no supported format found named %s", format)
 		}
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	return decoder, nil
+	return encoding, nil
 }
 
-func determineEncoder(outputFormat string, decoder formats.Encoding) (formats.Encoding, error) {
-	var encoder formats.Encoding
-	var ok bool
-	if outputFormat == "auto" {
-		encoder = decoder
-	} else {
-		encoder, ok = formats.ByName(outputFormat)
-		if !ok {
-			return nil, fmt.Errorf("no supported format found named %s", outputFormat)
-		}
-	}
-
-	return encoder, nil
-}
+var yamlSeparator = []byte("---")
 
 func detectFormat(file File) (formats.Encoding, error) {
 	if ext := filepath.Ext(file.Path()); ext != "" {
@@ -328,7 +265,7 @@ func detectFormat(file File) (formats.Encoding, error) {
 					} else if b == '-' {
 						// If we run into a -, then check if there is a yaml
 						// document separator ---.
-						if len(line[i:]) >= 3 && bytes.Equal(line[i:i+3], []byte("---")) {
+						if len(line[i:]) >= 3 && bytes.Equal(line[i:i+3], yamlSeparator) {
 							format = "yaml"
 						}
 					}

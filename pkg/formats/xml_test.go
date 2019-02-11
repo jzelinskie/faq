@@ -1,6 +1,9 @@
 package formats
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 var brokenSVG = []byte(`
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -54,7 +57,7 @@ var brokenSVG = []byte(`
 `)
 
 func TestSVG(t *testing.T) {
-	_, err := xmlEncoding{}.MarshalJSONBytes(brokenSVG)
+	_, err := xmlEncoding{}.NewDecoder(bytes.NewBuffer(brokenSVG)).MarshalJSONBytes()
 	if err != nil {
 		t.Fatal(err)
 	}

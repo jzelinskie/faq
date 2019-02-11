@@ -1,27 +1,26 @@
 package formats
 
 import (
+	"bytes"
+	"fmt"
+	"io"
 	"strings"
 )
 
-// Encoding represents any format that is isomorphic with JSON.
-type Encoding interface {
-	MarshalJSONBytes([]byte) ([]byte, error)
-	UnmarshalJSONBytes([]byte) ([]byte, error)
-	PrettyPrint([]byte) ([]byte, error)
-	Color([]byte) ([]byte, error)
-}
-
-// ToJSONDecoder is a decoder that reads and decodes values that are isomorphic
-// with JSON, and produces JSON encoded output
-type ToJSONDecoder interface {
+// Decoder is able to decode a format that is isomorphic with JSON.
+type Decoder interface {
 	MarshalJSONBytes() ([]byte, error)
 }
 
-// Streamable represents any format that is decodable as a stream and
-// isomorphic with JSON.
-type Streamable interface {
-	NewDecoder([]byte) ToJSONDecoder
+// Encoder is able to encode JSON input to a format that is isomorphic with JSON.
+type Encoder interface {
+	UnmarshalJSONBytes(input []byte, color, pretty bool) error
+}
+
+// Encoding represents any format that is isomorphic with JSON.
+type Encoding interface {
+	NewDecoder(io.Reader) Decoder
+	NewEncoder(io.Writer) Encoder
 }
 
 var nameToFormat = map[string]Encoding{}
@@ -46,4 +45,31 @@ func ToName(format Encoding) string {
 		}
 	}
 	return ""
+}
+
+type internalEncoder interface {
+	unmarshalJSONBytes([]byte) ([]byte, error)
+	prettyPrint([]byte) ([]byte, error)
+	color([]byte) ([]byte, error)
+}
+
+func internalEncode(encoder internalEncoder, input []byte, color, pretty bool) ([]byte, error) {
+	ret, err := encoder.unmarshalJSONBytes(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode as: %s", err)
+	}
+
+	if pretty {
+		ret, err = encoder.prettyPrint(ret)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode as pretty: %s", err)
+		}
+	}
+	if color {
+		ret, err = encoder.color(ret)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode as color: %s", err)
+		}
+	}
+	return bytes.TrimSuffix(ret, []byte("\n")), nil
 }

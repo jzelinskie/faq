@@ -168,11 +168,11 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 	}
 
 	if flags.ProvideNull {
-		encoder, ok := formats.ByName(flags.OutputFormat)
+		encoding, ok := formats.ByName(flags.OutputFormat)
 		if !ok {
 			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}
-		err := faq.ExecuteProgram(nil, program, programArgs, outputFile, encoder, outputConf, flags.Raw)
+		err := faq.ProcessInput(nil, program, programArgs, outputFile, encoding, outputConf, flags.Raw)
 		if err != nil {
 			return err
 		}
@@ -183,16 +183,23 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		if flags.OutputFormat == "" {
 			return fmt.Errorf("must specify --output-format when using --slurp")
 		}
-		encoder, ok := formats.ByName(flags.OutputFormat)
+		encoding, ok := formats.ByName(flags.OutputFormat)
 		if !ok {
 			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}
-		err := faq.SlurpAllFiles(flags.InputFormat, files, program, programArgs, outputFile, encoder, outputConf, flags.Raw)
+		err := faq.SlurpAllFiles(flags.InputFormat, files, program, programArgs, outputFile, encoding, outputConf, flags.Raw)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := faq.ProcessEachFile(flags.InputFormat, files, program, programArgs, outputFile, flags.OutputFormat, outputConf, flags.Raw)
+		if flags.OutputFormat == "" {
+			return fmt.Errorf("must specify --output-format when using --slurp")
+		}
+		encoding, ok := formats.ByName(flags.OutputFormat)
+		if !ok {
+			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
+		}
+		err := faq.ProcessEachFile(flags.InputFormat, files, program, programArgs, outputFile, encoding, outputConf, flags.Raw)
 		if err != nil {
 			return err
 		}
