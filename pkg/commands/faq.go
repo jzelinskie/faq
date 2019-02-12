@@ -168,6 +168,9 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 	}
 
 	if flags.ProvideNull {
+		if flags.OutputFormat == "auto" {
+			flags.OutputFormat = flags.InputFormat
+		}
 		encoding, ok := formats.ByName(flags.OutputFormat)
 		if !ok {
 			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
@@ -192,8 +195,8 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 			return err
 		}
 	} else {
-		if flags.OutputFormat == "" {
-			return fmt.Errorf("must specify --output-format when using --slurp")
+		if flags.OutputFormat == "auto" {
+			flags.OutputFormat = flags.InputFormat
 		}
 		encoding, ok := formats.ByName(flags.OutputFormat)
 		if !ok {
