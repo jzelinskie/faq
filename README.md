@@ -33,9 +33,27 @@ jq programs are stable and should be considered a bug if it does not match jq be
 
 ### Linux
 
+#### Compiled static binary release
+
 ```sh
 curl -Lo /usr/local/bin/faq https://github.com/jzelinskie/faq/releases/download/0.0.5/faq-linux-amd64
 chmod +x /usr/local/bin/faq
+```
+
+RPM based install via COPR repositories: https://copr.fedorainfracloud.org/coprs/ecnahc515/faq/ (https://github.com/chancez/faq-rpm)
+
+#### Fedora
+
+```
+dnf copr enable ecnahc515/faq
+dnf install faq
+```
+
+#### CentOS
+
+```
+curl https://copr.fedorainfracloud.org/coprs/ecnahc515/faq/repo/epel-7/ecnahc515-faq-epel-7.repo -o /etc/yum.repos.d/ecnahc515-faq-epel-7.repo
+yum install faq
 ```
 
 ### macOS
