@@ -1,18 +1,17 @@
 package faq
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 	"unicode"
 
 	"github.com/Azure/draft/pkg/linguist"
-
 	"github.com/jzelinskie/faq/pkg/formats"
 	"github.com/jzelinskie/faq/pkg/jq"
 	"github.com/sirupsen/logrus"
@@ -23,37 +22,30 @@ import (
 func ProcessEachFile(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, outputEncoding formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
 	encoder := outputEncoding.NewEncoder(outputWriter)
 	for _, file := range files {
-		decoderEncoding, err := determineEncoding(inputFormat, file)
+		decoderEncoding, file, err := determineEncoding(inputFormat, file)
 		if err != nil {
 			return err
 		}
 
-		fileBytes, err := file.Contents()
-		if err != nil {
-			return err
-		}
+		decoder := decoderEncoding.NewDecoder(file.Reader())
 
-		decoder := decoderEncoding.NewDecoder(bytes.NewBuffer(fileBytes))
-
-		if len(bytes.TrimSpace(fileBytes)) != 0 {
-			itemNum := 1
-			for {
-				data, err := decoder.MarshalJSONBytes()
-				if err == io.EOF {
-					break
-				}
-				if err != nil {
-					return fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
-				}
-
-				logrus.Debugf("file: %s (item %d), jsonified:\n%s", file.Path(), itemNum, string(data))
-
-				err = processInput(&data, program, programArgs, encoder, outputConf, rawOutput)
-				if err != nil {
-					return err
-				}
-				itemNum++
+		itemNum := 1
+		for {
+			data, err := decoder.MarshalJSONBytes()
+			if err == io.EOF {
+				break
 			}
+			if err != nil {
+				return fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
+			}
+
+			logrus.Debugf("file: %s (item %d), jsonified:\n%s", file.Path(), itemNum, string(data))
+
+			err = processInput(&data, program, programArgs, encoder, outputConf, rawOutput)
+			if err != nil {
+				return err
+			}
+			itemNum++
 		}
 	}
 
@@ -126,17 +118,12 @@ func combineJSONFilesToJSONArray(files []File, inputFormat string) ([]byte, erro
 
 	// iterate over each file, appending it's contents to an array
 	for i, file := range files {
-		encoding, err := determineEncoding(inputFormat, file)
+		encoding, file, err := determineEncoding(inputFormat, file)
 		if err != nil {
 			return nil, err
 		}
 
-		fileBytes, err := file.Contents()
-		if err != nil {
-			return nil, err
-		}
-
-		decoder := encoding.NewDecoder(bytes.NewBuffer(fileBytes))
+		decoder := encoding.NewDecoder(file.Reader())
 		var dataList [][]byte
 		for {
 			data, err := decoder.MarshalJSONBytes()
@@ -209,11 +196,11 @@ func marshalJqArgs(jsonBytes []byte, jqArgs ProgramArguments) ([]byte, error) {
 	return json.Marshal(programArgs)
 }
 
-func determineEncoding(format string, file File) (formats.Encoding, error) {
+func determineEncoding(format string, file File) (formats.Encoding, File, error) {
 	var encoding formats.Encoding
 	var err error
 	if format == "auto" {
-		encoding, err = detectFormat(file)
+		encoding, file, err = detectFormat(file)
 	} else {
 		var ok bool
 		encoding, ok = formats.ByName(format)
@@ -222,67 +209,81 @@ func determineEncoding(format string, file File) (formats.Encoding, error) {
 		}
 	}
 	if err != nil {
-		return nil, err
+		return nil, file, err
 	}
 
-	return encoding, nil
+	return encoding, file, nil
 }
 
 var yamlSeparator = []byte("---")
 
-func detectFormat(file File) (formats.Encoding, error) {
+func detectFormat(file File) (formats.Encoding, File, error) {
 	if ext := filepath.Ext(file.Path()); ext != "" {
 		if format, ok := formats.ByName(ext[1:]); ok {
-			return format, nil
+			return format, file, nil
 		}
 	}
 
-	fileBytes, err := file.Contents()
-	if err != nil {
-		return nil, err
-	}
+	reader := file.Reader()
+	// Look for either {, <, or --- at the beginning of the file to detect
+	// json/xml/yaml.
 
-	format := strings.ToLower(linguist.Analyse(fileBytes, linguist.LanguageHints(file.Path())))
+	var format string
+	for peekN := 1; ; peekN++ {
+		fileBytes, err := reader.Peek(peekN)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, nil, err
+		}
+		b := fileBytes[peekN-1]
 
-	// If linguist doesn't detect care about then try to take a better guess.
-	if _, ok := formats.ByName(format); !ok {
-		// Look for either {, <, or --- at the beginning of the file to detect
-		// json/xml/yaml.
-		scanner := bufio.NewScanner(bytes.NewReader(fileBytes))
-		keepScanning := true
-		for keepScanning && scanner.Scan() {
-			line := scanner.Bytes()
-			for i, b := range line {
-				// Go through each byte until we find a non-whitespace
-				// character.
-				if !unicode.IsSpace(rune(b)) {
-					// If it's either character we're looking for, set the
-					// correct format.
-					if b == '{' {
-						format = "json"
-					} else if b == '<' {
-						format = "xml"
-					} else if b == '-' {
-						// If we run into a -, then check if there is a yaml
-						// document separator ---.
-						if len(line[i:]) >= 3 && bytes.Equal(line[i:i+3], yamlSeparator) {
-							format = "yaml"
-						}
-					}
-					// Break here because if the first non-whitespace character
-					// isn't what we're looking for, then we didn't find what
-					// we're looking for.
-					keepScanning = false
-					break
-				}
+		// whitespace can be ignored
+		if unicode.IsSpace(rune(b)) {
+			continue
+		}
+
+		// If it's any of the characters we're looking for, set the
+		// correct format.
+		if b == '{' {
+			format = "json"
+			break
+		} else if b == '<' {
+			format = "xml"
+			break
+		} else if b == '-' {
+			// If we run into a -, then check if there is a yaml
+			// document separator ---.
+			fileBytes, err = reader.Peek(peekN + 2)
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				return nil, nil, err
+			}
+			potentialYamlBytes := fileBytes[peekN-1 : peekN+2]
+			if bytes.Equal(potentialYamlBytes, yamlSeparator) {
+				format = "yaml"
+				break
 			}
 		}
+		// We found a non-whitespace character that isn't what we were
+		// looking for, so stop trying to detect the format.
+		break
 	}
 
-	// Go isn't smart enough to do this in one line.
+	if format == "" {
+		fileBytes, err := ioutil.ReadAll(reader)
+		if err != nil {
+			return nil, nil, err
+		}
+		format = strings.ToLower(linguist.Analyse(fileBytes, linguist.LanguageHints(file.Path())))
+		// Return a new File since we read the one that was given.
+		file = NewFile(file.Path(), ioutil.NopCloser(bytes.NewBuffer(fileBytes)))
+	}
+
 	enc, ok := formats.ByName(format)
 	if !ok {
-		return nil, errors.New("failed to detect format of the input")
+		return nil, nil, errors.New("failed to detect format of the input")
 	}
-	return enc, nil
+	return enc, file, nil
 }

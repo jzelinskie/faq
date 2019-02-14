@@ -109,10 +109,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 
 	// Check to see execution is in an interactive terminal and set the args
 	// and flags as such.
-	var (
-		program string
-		paths   []string
-	)
+	var program string
 
 	var files []faq.File
 	if flags.ProgramFile != "" {
@@ -129,7 +126,6 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 	}
 
 	if flags.ProvideNull {
-		paths = nil
 		if flags.InputFormat == "auto" {
 			flags.InputFormat = "json"
 		}
@@ -138,22 +134,20 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 			flags.OutputFormat = "json"
 		}
 	} else {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) && len(args) == 0 {
-			paths = []string{"/dev/stdin"}
+		if len(args) == 0 {
+			files = []faq.File{faq.NewFile("/dev/stdin", os.Stdin)}
 		} else if len(args) != 0 {
-			paths = args
-		} else {
-			return fmt.Errorf("not enough arguments provided")
+			// Verify all files exist, and open them.
+			for _, path := range args {
+				file, err := faq.OpenFile(path)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
+				files = append(files, file)
+			}
 		}
 
-		// Verify all files exist, and open them.
-		for _, path := range paths {
-			fileInfo, err := faq.OpenFile(path)
-			if err != nil {
-				return err
-			}
-			files = append(files, fileInfo)
-		}
 	}
 
 	programArgs := faq.ProgramArguments{

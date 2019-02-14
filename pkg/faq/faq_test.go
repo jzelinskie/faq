@@ -2,7 +2,9 @@ package faq
 
 import (
 	"bytes"
+	"io/ioutil"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/jzelinskie/faq/pkg/formats"
@@ -192,11 +194,7 @@ bar: false
 		t.Run(testCase.name, func(t *testing.T) {
 			var files []File
 			for i, fileContent := range testCase.inputFileContents {
-				files = append(files, &FileInfo{
-					path: "test-path-" + string(i),
-					read: true,
-					data: []byte(fileContent),
-				})
+				files = append(files, newFileFromString("test-path-"+strconv.Itoa(i), fileContent))
 			}
 
 			encoding, ok := formats.ByName(testCase.outputFormat)
@@ -330,11 +328,7 @@ cats: dogs
 		t.Run(testCase.name, func(t *testing.T) {
 			var files []File
 			for i, fileContent := range testCase.inputFileContents {
-				files = append(files, &FileInfo{
-					path: "test-path-" + strconv.Itoa(i),
-					read: true,
-					data: []byte(fileContent),
-				})
+				files = append(files, newFileFromString("test-path-"+strconv.Itoa(i), fileContent))
 			}
 			encoder, _ := formats.ByName(testCase.outputFormat)
 			var outputBuf bytes.Buffer
@@ -387,4 +381,8 @@ func TestExecuteProgram(t *testing.T) {
 			}
 		})
 	}
+}
+
+func newFileFromString(path, content string) File {
+	return NewFile(path, ioutil.NopCloser(strings.NewReader(content)))
 }
