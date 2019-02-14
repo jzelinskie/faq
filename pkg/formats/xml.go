@@ -19,7 +19,7 @@ var (
 type xmlEncoding struct{}
 
 func (xmlEncoding) NewDecoder(r io.Reader) Decoder {
-	return &xmlDecoder{r}
+	return &xmlDecoder{r, false}
 }
 
 func (e xmlEncoding) NewEncoder(w io.Writer) Encoder {
@@ -27,14 +27,19 @@ func (e xmlEncoding) NewEncoder(w io.Writer) Encoder {
 }
 
 type xmlDecoder struct {
-	r io.Reader
+	r    io.Reader
+	read bool
 }
 
-func (d xmlDecoder) MarshalJSONBytes() ([]byte, error) {
+func (d *xmlDecoder) MarshalJSONBytes() ([]byte, error) {
+	if d.read {
+		return nil, io.EOF
+	}
 	xmlBytes, err := ioutil.ReadAll(d.r)
 	if err != nil {
 		return nil, err
 	}
+	d.read = true
 
 	xmap, err := mxj.NewMapXml(xmlBytes, true)
 	if err != nil {

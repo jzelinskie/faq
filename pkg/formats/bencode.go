@@ -19,7 +19,7 @@ var (
 type bencodeEncoding struct{}
 
 func (bencodeEncoding) NewDecoder(r io.Reader) Decoder {
-	return &bencodeDecoder{r}
+	return &bencodeDecoder{r, false}
 }
 
 func (e bencodeEncoding) NewEncoder(w io.Writer) Encoder {
@@ -27,14 +27,19 @@ func (e bencodeEncoding) NewEncoder(w io.Writer) Encoder {
 }
 
 type bencodeDecoder struct {
-	r io.Reader
+	r    io.Reader
+	read bool
 }
 
-func (d bencodeDecoder) MarshalJSONBytes() ([]byte, error) {
+func (d *bencodeDecoder) MarshalJSONBytes() ([]byte, error) {
+	if d.read {
+		return nil, io.EOF
+	}
 	bencodeBytes, err := ioutil.ReadAll(d.r)
 	if err != nil {
 		return nil, err
 	}
+	d.read = true
 
 	var obj interface{}
 	err = bencode.DecodeBytes(bencodeBytes, &obj)

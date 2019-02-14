@@ -20,7 +20,7 @@ var (
 type tomlEncoding struct{}
 
 func (tomlEncoding) NewDecoder(r io.Reader) Decoder {
-	return &tomlDecoder{r}
+	return &tomlDecoder{r, false}
 }
 
 func (e tomlEncoding) NewEncoder(w io.Writer) Encoder {
@@ -28,14 +28,19 @@ func (e tomlEncoding) NewEncoder(w io.Writer) Encoder {
 }
 
 type tomlDecoder struct {
-	r io.Reader
+	r    io.Reader
+	read bool
 }
 
-func (d tomlDecoder) MarshalJSONBytes() ([]byte, error) {
+func (d *tomlDecoder) MarshalJSONBytes() ([]byte, error) {
+	if d.read {
+		return nil, io.EOF
+	}
 	tomlBytes, err := ioutil.ReadAll(d.r)
 	if err != nil {
 		return nil, err
 	}
+	d.read = true
 	var obj interface{}
 	err = toml.Unmarshal(tomlBytes, &obj)
 	if err != nil {

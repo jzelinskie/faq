@@ -18,7 +18,7 @@ var (
 type bsonEncoding struct{}
 
 func (bsonEncoding) NewDecoder(r io.Reader) Decoder {
-	return &bsonDecoder{r}
+	return &bsonDecoder{r, false}
 }
 
 func (e bsonEncoding) NewEncoder(w io.Writer) Encoder {
@@ -26,14 +26,19 @@ func (e bsonEncoding) NewEncoder(w io.Writer) Encoder {
 }
 
 type bsonDecoder struct {
-	r io.Reader
+	r    io.Reader
+	read bool
 }
 
-func (d bsonDecoder) MarshalJSONBytes() ([]byte, error) {
+func (d *bsonDecoder) MarshalJSONBytes() ([]byte, error) {
+	if d.read {
+		return nil, io.EOF
+	}
 	bsonBytes, err := ioutil.ReadAll(d.r)
 	if err != nil {
 		return nil, err
 	}
+	d.read = true
 
 	var obj interface{}
 	err = bson.Unmarshal(bsonBytes, &obj)
