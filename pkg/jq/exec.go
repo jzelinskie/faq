@@ -237,8 +237,9 @@ func execute(state *C.struct_jq_state, input C.jv, raw bool) ([]string, error) {
 	C.jq_start(state, C.jv_copy(input), C.int(0))
 
 	results := make([]string, 0)
-	result := C.jq_next(state)
-	for C.jv_is_valid(result) == 1 {
+
+	var result C.jv
+	for result = C.jq_next(state); C.jv_is_valid(result) == 1; result = C.jq_next(state) {
 		var str string
 		if raw && C.jv_get_kind(result) == C.JV_KIND_STRING {
 			str = C.GoString(C.jv_string_value(result))
@@ -247,9 +248,7 @@ func execute(state *C.struct_jq_state, input C.jv, raw bool) ([]string, error) {
 		}
 		results = append(results, str)
 		C.jv_free(result)
-		result = C.jq_next(state)
 	}
-	defer C.jv_free(result)
 
 	return results, invalidError(result)
 }
