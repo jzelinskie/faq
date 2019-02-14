@@ -9,6 +9,8 @@ import (
 
 // Decoder is able to decode a format that is isomorphic with JSON.
 type Decoder interface {
+	// MarshalJSONBytes returns a JSON value per invocation. It should return
+	// io.EOF when it reaches the end of it's stream input stream.
 	MarshalJSONBytes() ([]byte, error)
 }
 

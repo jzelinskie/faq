@@ -22,7 +22,7 @@ import (
 // to a JSON value and runs ExecuteProgram against each.
 func ProcessEachFile(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, outputEncoding formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
 	encoder := outputEncoding.NewEncoder(outputWriter)
-	for fileNum, file := range files {
+	for _, file := range files {
 		decoderEncoding, err := determineEncoding(inputFormat, file)
 		if err != nil {
 			return err
@@ -46,7 +46,7 @@ func ProcessEachFile(inputFormat string, files []File, program string, programAr
 					return fmt.Errorf("failed to jsonify file at %s: `%s`", file.Path(), err)
 				}
 
-				logrus.Debugf("file: %s (item %d), jsonified:\n%s", file.Path(), fileNum, string(data))
+				logrus.Debugf("file: %s (item %d), jsonified:\n%s", file.Path(), itemNum, string(data))
 
 				err = processInput(&data, program, programArgs, encoder, outputConf, rawOutput)
 				if err != nil {
