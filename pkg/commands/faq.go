@@ -16,16 +16,6 @@ import (
 	"github.com/jzelinskie/faq/pkg/version"
 )
 
-// ExecuteFaqCmd executes the faq commandline program
-func ExecuteFaqCmd() {
-	faqCmd := NewFaqCommand()
-	err := faqCmd.Execute()
-	if err != nil {
-		fmt.Printf("error executing %s: %v\n", faqCmd.Name(), err)
-		return
-	}
-}
-
 // NewFaqCommand returns a cobra.Command that
 func NewFaqCommand() *cobra.Command {
 	var flags flags
