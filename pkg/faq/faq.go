@@ -22,7 +22,7 @@ import (
 func ProcessEachFile(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, outputEncoding formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
 	encoder := outputEncoding.NewEncoder(outputWriter)
 	for _, file := range files {
-		decoderEncoding, file, err := determineEncoding(inputFormat, file)
+		decoderEncoding, file, err := DetermineEncoding(inputFormat, file)
 		if err != nil {
 			return err
 		}
@@ -118,7 +118,7 @@ func combineJSONFilesToJSONArray(files []File, inputFormat string) ([]byte, erro
 
 	// iterate over each file, appending it's contents to an array
 	for i, file := range files {
-		encoding, file, err := determineEncoding(inputFormat, file)
+		encoding, file, err := DetermineEncoding(inputFormat, file)
 		if err != nil {
 			return nil, err
 		}
@@ -196,7 +196,10 @@ func marshalJqArgs(jsonBytes []byte, jqArgs ProgramArguments) ([]byte, error) {
 	return json.Marshal(programArgs)
 }
 
-func determineEncoding(format string, file File) (formats.Encoding, File, error) {
+// DetermineEncoding returns an Encoding based on a file format and an input
+// file if input format is "auto". Since auto detection may consume the file,
+// DetermineEncoding returns a copy of the original File.
+func DetermineEncoding(format string, file File) (formats.Encoding, File, error) {
 	var encoding formats.Encoding
 	var err error
 	if format == "auto" {
