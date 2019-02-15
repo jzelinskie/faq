@@ -158,7 +158,7 @@ func (f *PositionalArgJSONFlag) Set(input string) error {
 
 // Type implements pflag.Value
 func (f *PositionalArgJSONFlag) Type() string {
-	return "string"
+	return "<jsonValue>"
 }
 
 // PositionalArgStringFlag implements pflag.Value that accepts a single string value
@@ -192,5 +192,5 @@ func (f *PositionalArgStringFlag) Set(input string) error {
 
 // Type implements pflag.Value
 func (f *PositionalArgStringFlag) Type() string {
-	return "<jsonValue>"
+	return "string"
 }
