@@ -8,6 +8,7 @@ require (
 	github.com/clbanning/mxj v0.0.0-20180418195244-1f00e0bf9bac
 	github.com/ghodss/yaml v1.0.0
 	github.com/globalsign/mgo v0.0.0-20180615134936-113d3961e731
+	github.com/go-xmlfmt/xmlfmt v0.0.0-20161217153300-0315779074c2
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jbrukh/bayesian v0.0.0-20161210175230-bf3f261f9a9c // indirect
 	github.com/sirupsen/logrus v1.3.0
@@ -17,4 +18,5 @@ require (
 	github.com/zeebo/bencode v0.0.0-20180308174530-d522839ac797
 	golang.org/x/crypto v0.0.0-20180904163835-0709b304e793
 	gopkg.in/yaml.v2 v2.2.2
+	howett.net/plist v0.0.0-20181124034731-591f970eefbb
 )
