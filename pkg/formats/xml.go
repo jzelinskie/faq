@@ -2,9 +2,11 @@ package formats
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"reflect"
 
 	"github.com/alecthomas/chroma/quick"
 	"github.com/clbanning/mxj"
@@ -53,6 +55,18 @@ type xmlEncoder struct {
 }
 
 func (e xmlEncoder) UnmarshalJSONBytes(jsonBytes []byte, color, pretty bool) error {
+	var tmp interface{}
+	err := json.Unmarshal(jsonBytes, &tmp)
+	if err != nil {
+		return err
+	}
+	if reflect.ValueOf(tmp).Kind() != reflect.Map {
+		newObj := map[string]interface{}{"root": tmp}
+		jsonBytes, err = json.Marshal(newObj)
+		if err != nil {
+			return err
+		}
+	}
 	out, err := internalEncode(e, jsonBytes, color, pretty)
 	if err != nil {
 		return err
