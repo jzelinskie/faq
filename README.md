@@ -40,7 +40,7 @@ brew install faq
 
 ### Linux
 
-#### Static binary
+#### Static binary (libjq not required)
 
 ```sh
 LATEST_RELEASE=$(curl -s https://api.github.com/repos/jzelinskie/faq/releases | cat | head -n 10 | grep "tag_name" | cut -d\" -f4)
