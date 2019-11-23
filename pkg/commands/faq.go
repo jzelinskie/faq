@@ -147,8 +147,8 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		Jsonkwargs: flags.Jsonkwargs,
 	}
 	outputConf := faq.OutputConfig{
-		Pretty: !flags.Compact && flags.Pretty,
-		Color:  color,
+		Pretty: !flags.Raw && !flags.Compact && flags.Pretty,
+		Color:  !flags.Raw && color,
 	}
 
 	if flags.ProvideNull {
