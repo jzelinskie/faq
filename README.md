@@ -34,8 +34,7 @@ jq programs are stable and should be considered a bug if it does not match jq be
 ### macOS
 
 ```sh
-brew tap jzelinskie/faq
-brew install faq
+brew install jzelinskie/faq/faq
 ```
 
 ### Linux
