@@ -1,5 +1,7 @@
 module github.com/jzelinskie/faq
 
+go 1.14
+
 require (
 	github.com/Azure/draft v0.16.0
 	github.com/BurntSushi/toml v0.3.1
