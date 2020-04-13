@@ -78,7 +78,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 	}
 
 	if flags.PrintVersion {
-		fmt.Println(version.Version)
+		fmt.Printf(version.UsageVersion())
 		return nil
 	}
 
