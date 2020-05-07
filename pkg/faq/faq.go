@@ -84,6 +84,11 @@ func processInput(input *[]byte, program string, programArgs ProgramArguments, e
 		return err
 	}
 
+	if rawOutput {
+		outputConf.Color = false
+		outputConf.Pretty = false
+	}
+
 	for _, output := range outputs {
 		err := encoder.UnmarshalJSONBytes([]byte(output), outputConf.Color, outputConf.Pretty)
 		if err != nil {
