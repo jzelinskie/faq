@@ -10,6 +10,8 @@ import (
 // Version is faq's version string
 var Version string
 
+// UsageVersion introspects the process debug data for Go modules to return a
+// version string.
 func UsageVersion() string {
 	bi, ok := debug.ReadBuildInfo()
 	if !ok {
