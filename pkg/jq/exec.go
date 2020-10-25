@@ -1,19 +1,21 @@
 // Package jq implements C bindings to libjq 1.6-rc2+.
-// Because of cgo craziness, this library should not be considered thread-safe.
+//
+// Because libjq uses callbacks for error handling, this library should not
+// be considered thread-safe.
 package jq
 
 /*
-#cgo LDFLAGS: -ljq -lonig
-
-#include <jq.h>
-#include <jv.h>
+#cgo LDFLAGS: -L . -ljq -lonig
 
 #include <stdlib.h>
+#include <jq.h>
 
-void register_jq_error_cb(jq_state *jq, unsigned long long id);
-void set_jq_error_cb_default(jq_state *jq);
+void gojq_error_cb(void*, jv);
+void gojq_set_error_cb(jq_state*, unsigned long long);
+void gojq_reset_error_cb(jq_state*);
 */
 import "C"
+
 import (
 	"errors"
 	"fmt"
@@ -21,6 +23,16 @@ import (
 	"reflect"
 	"unsafe"
 )
+
+//export errorCallback
+func errorCallback(id C.ulonglong, failedJV C.jv) {
+	err := errorFromJv(failedJV)
+	if err == nil {
+		panic("error callback executed for nonexistant error")
+	}
+	callbackID := uint64(id)
+	callbackErrors[callbackID] = append(callbackErrors[callbackID], err)
+}
 
 func jvToGoValue(jv C.jv) interface{} {
 	kind := C.jv_get_kind(jv)
@@ -171,16 +183,6 @@ func errorFromJv(jv C.jv) error {
 	return errors.New(C.GoString(C.jv_string_value(jv)))
 }
 
-//export goJQErrorHandler
-func goJQErrorHandler(id uint64, jv C.jv) {
-	err := errorFromJv(jv)
-	if err == nil {
-		panic("callback for nil error")
-	}
-
-	callbackErrors[id] = append(callbackErrors[id], err)
-}
-
 // Exec compiles a JQ program with the provided args and executes it with the
 // provided input.
 //
@@ -271,16 +273,16 @@ func invalidError(jv C.jv) error {
 // collectErrors wraps a closure that calls jv functions that perform error
 // handling via callback.
 func collectErrors(state *C.struct_jq_state, fn func()) []error {
-	callbackKey := rand.Uint64()
-	C.register_jq_error_cb(state, C.ulonglong(callbackKey))
-	defer C.set_jq_error_cb_default(state)
+	callbackID := rand.Uint64()
+	C.gojq_set_error_cb(state, C.ulonglong(callbackID))
+	defer C.gojq_reset_error_cb(state)
 
-	callbackErrors[callbackKey] = nil
-	defer delete(callbackErrors, callbackKey)
+	callbackErrors[callbackID] = nil
+	defer delete(callbackErrors, callbackID)
 
 	fn()
 
-	return callbackErrors[callbackKey]
+	return callbackErrors[callbackID]
 }
 
 // ErrWrongType is returned from functions when an assertion about the type of
