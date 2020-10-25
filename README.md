@@ -1,15 +1,13 @@
 # faq
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/jzelinskie/faq?style=flat-square)](https://goreportcard.com/report/github.com/jzelinskie/faq)
-[![Build Status Travis](https://img.shields.io/travis/jzelinskie/faq.svg?style=flat-square&&branch=master)](https://travis-ci.org/jzelinskie/faq)
-[![Godoc](https://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](https://pkg.go.dev/github.com/jzelinskie/faq?tab=subdirectories)
+[![Build Status](https://github.com/jzelinskie/faq/workflows/Build%20&%20Test/badge.svg)](https://github.com/jzelinskie/faq/actions)
+[![Godoc](https://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](https://pkg.go.dev/github.com/jzelinskie/faq)
 [![Releases](https://img.shields.io/github/release/jzelinskie/faq/all.svg?style=flat-square)](https://github.com/jzelinskie/faq/releases)
 [![LICENSE](https://img.shields.io/github/license/jzelinskie/faq.svg?style=flat-square)](https://github.com/coreos/etcd/blob/master/LICENSE)
 
-**Note**: The `master` branch may be in an *unstable or even broken state* during development. Please use [releases] instead of the `master` branch in order to get stable binaries.
-
 faq is a tool intended to be a more flexible [jq], supporting additional formats.
-The additional formats are converted into JSON and processed with libjq.
+The additional formats are converted into JSON and processed with [libjq].
 
 Supported formats:
 - BSON
@@ -25,51 +23,23 @@ For example usage, read [the examples doc].
 
 [releases]: https://github.com/jzelinskie/faq/releases
 [jq]: https://github.com/stedolan/jq
+[libjq]: https://github.com/stedolan/jq/wiki/C-API:-libjq
 [the examples doc]: /docs/examples.md
 
 ## Installation
 
-faq is still under heavy development and has only unstable binary releases.
+The `master` branch may be in an *unstable or even broken state* during development.
+Please use [releases] instead of the `master` branch in order to get stable binaries.
+
 Behavior such as command-line flags may change causing shell scripts using faq to break after upgrading.
 jq programs are stable and should be considered a bug if it does not match jq behavior.
 
-### macOS
-
-[Homebrew] is required.
-
-```sh
-brew install jzelinskie/faq/faq
-```
+- Statically compiled binaries are available on the [releases] page: just download the binary for your platform, and make it executable.
+- A [Homebrew] formula can be installed with `brew install jzelinskie/faq/faq`
+- RPMs are available via a [COPR repository]. 
+- There's an [AUR PKGBUILD] for Arch Linux that can be installed with your favorite [AUR tooling].
 
 [Homebrew]: https://brew.sh
-
-### Linux
-
-#### Static binary (absolutely zero dependencies)
-
-Installation is as easy as navigating to the [releases] page, downloading the binary, and making it executable.
-The following script does exactly that using standard unix tools.
-
-```sh
-LATEST_RELEASE=$(curl -s https://api.github.com/repos/jzelinskie/faq/releases | cat | head -n 10 | grep "tag_name" | cut -d\" -f4)
-curl -Lo /usr/local/bin/faq https://github.com/jzelinskie/faq/releases/download/$LATEST_RELEASE/faq-linux-amd64
-chmod +x /usr/local/bin/faq
-```
-
-#### Community packages
-
-RPMs are available via a [COPR repository]. 
-
-```sh
-# dnf distros
-dnf copr enable ecnahc515/faq && dnf install faq
-
-# yum distros
-curl https://copr.fedorainfracloud.org/coprs/ecnahc515/faq/repo/epel-7/ecnahc515-faq-epel-7.repo -o /etc/yum.repos.d/ecnahc515-faq-epel-7.repo && yum install faq
-```
-
-There's an [AUR PKGBUILD] for Arch Linux that can be installed with your favorite [AUR tooling].
-
 [COPR repository]: https://copr.fedorainfracloud.org/coprs/ecnahc515/faq
 [AUR PKGBUILD]: https://aur.archlinux.org/packages/faq/
 [AUR tooling]: https://wiki.archlinux.org/index.php/AUR_helpers
@@ -82,7 +52,7 @@ A version of [jq] greater than 1.6-rc2 that includes the libjq header files must
 ```sh
 git clone git@github.com:jzelinskie/faq.git
 cd faq
-make
+make all
 ```
 
 [latest stable version of Go]: https://golang.org/dl
