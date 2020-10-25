@@ -16,9 +16,9 @@ require (
 	github.com/sirupsen/logrus v1.3.0
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3
-	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/zeebo/bencode v0.0.0-20180308174530-d522839ac797
-	golang.org/x/crypto v0.0.0-20180904163835-0709b304e793
-	gopkg.in/yaml.v2 v2.2.2
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/tools/gopls v0.5.0 // indirect
+	gopkg.in/yaml.v2 v2.2.4
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb
 )

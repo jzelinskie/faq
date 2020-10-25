@@ -1,4 +1,4 @@
-FROM quay.io/jzelinskie/golang:1.12rc2-alpine-edge AS build
+FROM golang:1.15-alpine AS build
 RUN apk add --no-cache git make jq-dev gcc libc-dev oniguruma-dev bash
 
 RUN go get -u github.com/golang/dep/cmd/...
