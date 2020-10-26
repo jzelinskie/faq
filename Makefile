@@ -3,40 +3,29 @@ GOARCH := $(shell go env GOARCH)
 FAQ_BIN = faq-$(GOOS)-$(GOARCH)
 
 ifeq ($(GOOS), linux)
-FAQ_LINK_STATIC=true
 INSTALL=install
 else
-FAQ_LINK_STATIC=false
 INSTALL=ginstall
 endif
 
+FAQ_LINK_STATIC=false
 GO_EXT_LD_FLAGS=-v
 ifeq ($(FAQ_LINK_STATIC), true)
 GO_EXT_LD_FLAGS+= -static
 endif
 
 FAQ_VERSION=$(shell git describe --always --abbrev=40 --dirty)
-GO_LD_FLAGS=-s -w -X github.com/jzelinskie/faq/pkg/version.Version=$(FAQ_VERSION) -linkmode external -extldflags "$(GO_EXT_LD_FLAGS)"
+GO_LD_FLAGS=-s -w -X github.com/jzelinskie/faq/pkg/version.Version=$(FAQ_VERSION) -extldflags "$(GO_EXT_LD_FLAGS)"
 
 GO=go
-GO_BUILD_ARGS=-v -ldflags '$(GO_LD_FLAGS)'
+GO_BUILD_ARGS=-v -ldflags '$(GO_LD_FLAGS)' -tags netgo
 GO_FILES:=$(shell find . -name '*.go' -type f)
-
-IMAGE_TAG = latest
-IMAGE_REPO = quay.io/jzelinskie/faq
 
 prefix = /usr/local
 exec_prefix = $(prefix)
 bindir = $(exec_prefix)/bin
 
-all:
-	$(MAKE) test
-ifneq ($(SKIP_VALIDATE),true)
-	$(MAKE) validate
-endif
-	$(MAKE) build
-
-install:
+install: $(FAQ_BIN)
 	mkdir -p $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(FAQ_BIN) $(DESTDIR)$(bindir)/faq
 
@@ -46,17 +35,15 @@ $(FAQ_BIN): $(GO_FILES)
 PHONY: build
 build: $(FAQ_BIN)
 
-PHONY: docker-build
-docker-build:
-	docker build -t $(IMAGE_REPO):$(IMAGE_TAG) .
-
 PHONY: test
 test:
-	scripts/test.sh
-
-PHONY: validate
-validate:
-	scripts/validate.sh
+	go test ./...
 
 clean:
 	rm $(FAQ_BIN)
+
+PHONY: lint
+lint:
+	golint ./...
+
+all: lint test build
