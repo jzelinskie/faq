@@ -10,7 +10,7 @@ void gojq_error_cb(void *data, jv jv) {
   errorCallback((unsigned long long)data, jv);
 };
 
-// This sets the go_jq_error_cb, casting the id into a void*.
+// This sets the jq_error_cb to go_jq_error_cb, casting the id into a void*.
 // This has to be done in C because Go will not cast C.ulonglong into
 // unsafe.Pointer (the type that represents void*).
 void gojq_set_error_cb(jq_state *jq, unsigned long long id) {

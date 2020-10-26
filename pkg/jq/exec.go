@@ -10,7 +10,6 @@ package jq
 #include <stdlib.h>
 #include <jq.h>
 
-void gojq_error_cb(void*, jv);
 void gojq_set_error_cb(jq_state*, unsigned long long);
 void gojq_reset_error_cb(jq_state*);
 */
