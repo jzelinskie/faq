@@ -1,24 +1,21 @@
 module github.com/jzelinskie/faq
 
-go 1.14
+go 1.16
 
 require (
 	github.com/Azure/draft v0.16.0
 	github.com/BurntSushi/toml v0.3.1
-	github.com/alecthomas/chroma v0.6.2
-	github.com/alecthomas/repr v0.0.0-20181024024818-d37bc2a10ba1 // indirect
-	github.com/clbanning/mxj v0.0.0-20180418195244-1f00e0bf9bac
+	github.com/alecthomas/chroma v0.8.2
+	github.com/clbanning/mxj/v2 v2.5.5
 	github.com/ghodss/yaml v1.0.0
-	github.com/globalsign/mgo v0.0.0-20180615134936-113d3961e731
-	github.com/go-xmlfmt/xmlfmt v0.0.0-20161217153300-0315779074c2
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/jbrukh/bayesian v0.0.0-20161210175230-bf3f261f9a9c // indirect
-	github.com/sirupsen/logrus v1.3.0
-	github.com/spf13/cobra v0.0.3
-	github.com/spf13/pflag v1.0.3
-	github.com/zeebo/bencode v0.0.0-20180308174530-d522839ac797
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/tools/gopls v0.5.0 // indirect
-	gopkg.in/yaml.v2 v2.2.4
-	howett.net/plist v0.0.0-20181124034731-591f970eefbb
+	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
+	github.com/go-xmlfmt/xmlfmt v0.0.0-20191208150333-d5b6f63a941b
+	github.com/jbrukh/bayesian v0.0.0-20200318221351-d726b684ca4a // indirect
+	github.com/sirupsen/logrus v1.8.0
+	github.com/spf13/cobra v1.1.3
+	github.com/spf13/pflag v1.0.5
+	github.com/zeebo/bencode v1.0.0
+	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
+	gopkg.in/yaml.v2 v2.4.0
+	howett.net/plist v0.0.0-20201203080718-1454fab16a06
 )

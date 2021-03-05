@@ -9,7 +9,7 @@ import (
 	"reflect"
 
 	"github.com/alecthomas/chroma/quick"
-	"github.com/clbanning/mxj"
+	"github.com/clbanning/mxj/v2"
 )
 
 var (
