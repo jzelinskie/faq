@@ -34,6 +34,7 @@ type xmlDecoder struct {
 }
 
 func (d *xmlDecoder) MarshalJSONBytes() ([]byte, error) {
+	mxj.XMLEscapeChars(false)
 	if d.read {
 		return nil, io.EOF
 	}
@@ -76,6 +77,7 @@ func (e xmlEncoder) UnmarshalJSONBytes(jsonBytes []byte, color, pretty bool) err
 }
 
 func (xmlEncoder) unmarshalJSONBytes(jsonBytes []byte) ([]byte, error) {
+	mxj.XMLEscapeChars(true)
 	xmap, err := mxj.NewMapJson(jsonBytes)
 	if err != nil {
 		return nil, err

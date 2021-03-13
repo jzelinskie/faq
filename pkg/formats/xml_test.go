@@ -2,6 +2,8 @@ package formats
 
 import (
 	"bytes"
+	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -60,5 +62,38 @@ func TestSVG(t *testing.T) {
 	_, err := xmlEncoding{}.NewDecoder(bytes.NewBuffer(brokenSVG)).MarshalJSONBytes()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestXMLEscapeSequences(t *testing.T) {
+	table := []struct {
+		xml  string
+		json string
+	}{
+		{`<p>me &amp; you</p>`, `{"p":"me & you"}`},
+	}
+
+	for _, row := range table {
+		t.Run(row.xml, func(t *testing.T) {
+			jsonBytes, err := xmlEncoding{}.NewDecoder(strings.NewReader(row.xml)).MarshalJSONBytes()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if string(jsonBytes) != row.json {
+				t.Fatal(fmt.Sprintf("incorrect JSON value:\nexpected: %s\ngot:     %s", row.json, string(jsonBytes)))
+			}
+
+			var buf bytes.Buffer
+			err = xmlEncoding{}.NewEncoder(&buf).UnmarshalJSONBytes(jsonBytes, false, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			xmlString := strings.TrimSpace(buf.String())
+			if xmlString != row.xml {
+				t.Fatal(fmt.Sprintf("incorrect XML value:\nexpected: %#v\ngot:      %#v", row.xml, xmlString))
+			}
+		})
 	}
 }
