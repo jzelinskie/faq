@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -83,6 +84,11 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 	}
 
 	outputFile := os.Stdout
+
+	if len(args) == 0 && terminal.IsTerminal(int(outputFile.Fd())) {
+		return errors.New("no arguments provided")
+	}
+
 	var color bool
 	// If monochrome is true, disable color, as it takes higher precedence then
 	// --color-output.
