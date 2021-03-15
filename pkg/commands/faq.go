@@ -36,6 +36,7 @@ Supported formats:
 - BSON
 - Bencode
 - JSON
+- Property Lists
 - TOML
 - XML
 - YAML
