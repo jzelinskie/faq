@@ -84,13 +84,12 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		return nil
 	}
 
-	outputFile := os.Stdout
-
-	if len(args) == 0 && terminal.IsTerminal(int(outputFile.Fd())) {
+	if len(args) == 0 && terminal.IsTerminal(int(os.Stdin.Fd())) {
 		return errors.New("no arguments provided")
 	}
 
-	var color bool
+	outputFile := os.Stdout
+
 	// If monochrome is true, disable color, as it takes higher precedence then
 	// --color-output.
 	// If we're running in Windows, disable color, since it usually doesn't
@@ -98,6 +97,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 	// If the output isn't a TTY, and color hasn't been explicitly set via the
 	// flag, disable color.
 	// otherwise, use to the flags values to determine if color is enabled.
+	var color bool
 	if flags.Monochrome || runtime.GOOS == "windows" || !terminal.IsTerminal(int(outputFile.Fd())) && !cmd.Flags().Changed("color-output") {
 		color = false
 	} else {
