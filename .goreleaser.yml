@@ -1,0 +1,63 @@
+before:
+  hooks:
+  - "go mod download"
+builds:
+- id: static
+  main: ./cmd/faq
+  env:
+  - CGO_ENABLED=1
+  ldflags: "-s -w -X github.com/jzelinskie/faq/pkg/version.Version={{.Version}} -extldflags -v -static"
+  goos:
+  - linux
+  - freebsd
+  - openbsd
+  goarch:
+  - amd64
+  - arm64
+- id: dynamic
+  main: ./cmd/faq
+  env:
+  - CGO_ENABLED=1
+  - CC=o64-clang 
+  - CXX=o64-clang++
+  ldflags: "-s -w -X github.com/jzelinskie/faq/pkg/version.Version={{.Version}} -extldflags -v"
+  goos:
+  - darwin
+  goarch:
+  - amd64
+  - arm64
+archives:
+- id: golang-cross
+  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  wrap_in_directory: true
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+brews:
+- tap:
+    owner: jzelinskie
+    name: homebrew-faq
+  folder: Formula
+  homepage: https://github.com/jzelinskie/faq
+  description: Format Agnostic jQ
+  license: "Apache 2.0"
+  dependencies:
+  - name: jq
+  test: |
+    system "#{bin}/faq", "--version"
+dockers:
+  - goos: linux
+    goarch: amd64
+    dockerfile: ./Dockerfile
+    image_templates:
+    - "quay.io/jzelinskie/faq:{{.Version}}"
+    build_flag_templates:
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.name={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=repository=https://github.com/jzelinskie/faq"
+    - "--label=homepage=https://github.com/jzelinskie/faq"

@@ -1,0 +1,23 @@
+name: Release
+on:
+  pull_request:
+    branches:
+      - "*"
+jobs:
+  goreleaser:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: goreleaser
+        run: |
+          docker run --rm --privileged \
+                     -e DOCKER_USERNAME=$DOCKER_USERNAME \
+                     -e DOCKER_PASSWORD=$DOCKER_PASSWORD \
+                     -e GITHUB_TOKEN=$GITHUB_TOKEN \
+                     -v $PWD:/go/src/faq \
+                     -v /var/run/docker.sock:/var/run/docker.sock \
+                     -w /go/src/faq \
+                     quay.io/jzelinskie/goreleaser-xcgo:latest \
+                     --snapshot --skip-publish --rm-dist
