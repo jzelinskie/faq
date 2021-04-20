@@ -10,7 +10,12 @@ import (
 
 	"github.com/alecthomas/chroma/quick"
 	"github.com/clbanning/mxj/v2"
+	"golang.org/x/net/html/charset"
 )
+
+func init() {
+	mxj.XmlCharsetReader = charset.NewReaderLabel
+}
 
 var (
 	_ Encoding = xmlEncoding{}
