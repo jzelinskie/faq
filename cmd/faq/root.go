@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/jzelinskie/faq/pkg/faq"
-	"github.com/jzelinskie/faq/pkg/formats"
-	"github.com/jzelinskie/faq/pkg/version"
+	"github.com/jzelinskie/faq/internal/faq"
+	"github.com/jzelinskie/faq/internal/version"
+	"github.com/jzelinskie/faq/pkg/objconv"
 )
 
 func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
@@ -106,7 +106,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		if flags.OutputFormat == "auto" {
 			flags.OutputFormat = "json"
 		}
-		encoding, ok := formats.ByName(flags.OutputFormat)
+		encoding, ok := objconv.ByName(flags.OutputFormat)
 		if !ok {
 			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}
@@ -121,7 +121,7 @@ func runCmdFunc(cmd *cobra.Command, args []string, flags flags) error {
 		if flags.OutputFormat == "" {
 			return fmt.Errorf("must specify --output-format when using --slurp")
 		}
-		encoding, ok := formats.ByName(flags.OutputFormat)
+		encoding, ok := objconv.ByName(flags.OutputFormat)
 		if !ok {
 			return fmt.Errorf("invalid --output-format %s", flags.OutputFormat)
 		}

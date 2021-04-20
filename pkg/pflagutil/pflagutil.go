@@ -1,4 +1,4 @@
-package flagutil
+package pflagutil
 
 import (
 	"encoding/json"
@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// Enforce that these types implement the pflag.Value interface at compile time.
 var (
-	// validate these types implement the pflag.Value interface at compile time
 	_ pflag.Value = &KwargStringFlag{}
 	_ pflag.Value = &KwargJSONFlag{}
 	_ pflag.Value = &PositionalArgStringFlag{}

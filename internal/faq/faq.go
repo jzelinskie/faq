@@ -12,14 +12,15 @@ import (
 	"unicode"
 
 	"github.com/Azure/draft/pkg/linguist"
-	"github.com/jzelinskie/faq/pkg/formats"
-	"github.com/jzelinskie/faq/pkg/jq"
 	"github.com/sirupsen/logrus"
+
+	"github.com/jzelinskie/faq/internal/jq"
+	"github.com/jzelinskie/faq/pkg/objconv"
 )
 
 // ProcessEachFile takes a list of files, and for each, attempts to convert it
 // to a JSON value and runs ExecuteProgram against each.
-func ProcessEachFile(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, outputEncoding formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
+func ProcessEachFile(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, outputEncoding objconv.Encoding, outputConf OutputConfig, rawOutput bool) error {
 	encoder := outputEncoding.NewEncoder(outputWriter)
 	for _, file := range files {
 		decoderEncoding, file, err := DetermineEncoding(inputFormat, file)
@@ -55,7 +56,7 @@ func ProcessEachFile(inputFormat string, files []File, program string, programAr
 // SlurpAllFiles takes a list of files, and for each, attempts to convert it to
 // a JSON value and appends each JSON value to an array, and passes that array
 // as the input ExecuteProgram.
-func SlurpAllFiles(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, encoding formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
+func SlurpAllFiles(inputFormat string, files []File, program string, programArgs ProgramArguments, outputWriter io.Writer, encoding objconv.Encoding, outputConf OutputConfig, rawOutput bool) error {
 	data, err := combineJSONFilesToJSONArray(files, inputFormat)
 	if err != nil {
 		return err
@@ -73,12 +74,12 @@ func SlurpAllFiles(inputFormat string, files []File, program string, programArgs
 
 // ProcessInput takes input, a single JSON value, and runs program via libjq
 // against it, writing the results to outputWriter.
-func ProcessInput(input *[]byte, program string, programArgs ProgramArguments, outputWriter io.Writer, encoding formats.Encoding, outputConf OutputConfig, rawOutput bool) error {
+func ProcessInput(input *[]byte, program string, programArgs ProgramArguments, outputWriter io.Writer, encoding objconv.Encoding, outputConf OutputConfig, rawOutput bool) error {
 	encoder := encoding.NewEncoder(outputWriter)
 	return processInput(input, program, programArgs, encoder, outputConf, rawOutput)
 }
 
-func processInput(input *[]byte, program string, programArgs ProgramArguments, encoder formats.Encoder, outputConf OutputConfig, rawOutput bool) error {
+func processInput(input *[]byte, program string, programArgs ProgramArguments, encoder objconv.Encoder, outputConf OutputConfig, rawOutput bool) error {
 	outputs, err := ExecuteProgram(input, program, programArgs, rawOutput)
 	if err != nil {
 		return err
@@ -204,14 +205,14 @@ func marshalJqArgs(jsonBytes []byte, jqArgs ProgramArguments) ([]byte, error) {
 // DetermineEncoding returns an Encoding based on a file format and an input
 // file if input format is "auto". Since auto detection may consume the file,
 // DetermineEncoding returns a copy of the original File.
-func DetermineEncoding(format string, file File) (formats.Encoding, File, error) {
-	var encoding formats.Encoding
+func DetermineEncoding(format string, file File) (objconv.Encoding, File, error) {
+	var encoding objconv.Encoding
 	var err error
 	if format == "auto" {
 		encoding, file, err = detectFormat(file)
 	} else {
 		var ok bool
-		encoding, ok = formats.ByName(format)
+		encoding, ok = objconv.ByName(format)
 		if !ok {
 			err = fmt.Errorf("no supported format found named %s", format)
 		}
@@ -225,9 +226,9 @@ func DetermineEncoding(format string, file File) (formats.Encoding, File, error)
 
 var yamlSeparator = []byte("---")
 
-func detectFormat(file File) (formats.Encoding, File, error) {
+func detectFormat(file File) (objconv.Encoding, File, error) {
 	if ext := filepath.Ext(file.Path()); ext != "" {
-		if format, ok := formats.ByName(ext[1:]); ok {
+		if format, ok := objconv.ByName(ext[1:]); ok {
 			return format, file, nil
 		}
 	}
@@ -289,7 +290,7 @@ func detectFormat(file File) (formats.Encoding, File, error) {
 		file = NewFile(file.Path(), ioutil.NopCloser(bytes.NewBuffer(fileBytes)))
 	}
 
-	enc, ok := formats.ByName(format)
+	enc, ok := objconv.ByName(format)
 	if !ok {
 		return nil, nil, errors.New("failed to detect format of the input")
 	}

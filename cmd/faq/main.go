@@ -3,17 +3,18 @@ package main
 import (
 	"os"
 
-	"github.com/jzelinskie/faq/pkg/flagutil"
 	"github.com/spf13/cobra"
+
+	"github.com/jzelinskie/faq/pkg/pflagutil"
 )
 
 func main() {
 	var flags flags
 
-	stringKwargsFlag := flagutil.NewKwargStringFlag(&flags.Kwargs)
-	jsonKwargsFlag := flagutil.NewKwargJSONFlag(&flags.Jsonkwargs)
-	stringPositionalArgsFlag := flagutil.NewPositionalArgStringFlag(&flags.Args)
-	jsonPositionalArgsFlag := flagutil.NewPositionalArgJSONFlag(&flags.Jsonargs)
+	stringKwargsFlag := pflagutil.NewKwargStringFlag(&flags.Kwargs)
+	jsonKwargsFlag := pflagutil.NewKwargJSONFlag(&flags.Jsonkwargs)
+	stringPositionalArgsFlag := pflagutil.NewPositionalArgStringFlag(&flags.Args)
+	jsonPositionalArgsFlag := pflagutil.NewPositionalArgJSONFlag(&flags.Jsonargs)
 
 	var rootCmd = &cobra.Command{
 		Use:   "faq [flags] [filter string] [files...]",
