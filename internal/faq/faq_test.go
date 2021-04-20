@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jzelinskie/faq/pkg/formats"
+	"github.com/jzelinskie/faq/pkg/objconv"
 )
 
 func TestProcessEachFile(t *testing.T) {
@@ -197,7 +197,7 @@ bar: false
 				files = append(files, newFileFromString("test-path-"+strconv.Itoa(i), fileContent))
 			}
 
-			encoding, ok := formats.ByName(testCase.outputFormat)
+			encoding, ok := objconv.ByName(testCase.outputFormat)
 			if !ok {
 				t.Errorf("invalid format: %s", testCase.outputFormat)
 			}
@@ -330,7 +330,7 @@ cats: dogs
 			for i, fileContent := range testCase.inputFileContents {
 				files = append(files, newFileFromString("test-path-"+strconv.Itoa(i), fileContent))
 			}
-			encoder, _ := formats.ByName(testCase.outputFormat)
+			encoder, _ := objconv.ByName(testCase.outputFormat)
 			var outputBuf bytes.Buffer
 			err := SlurpAllFiles(testCase.inputFormat, files, testCase.program, ProgramArguments{}, &outputBuf, encoder, OutputConfig{}, testCase.raw)
 			if err != nil {
@@ -368,7 +368,7 @@ func TestExecuteProgram(t *testing.T) {
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
-			encoder, _ := formats.ByName(testCase.outputFormat)
+			encoder, _ := objconv.ByName(testCase.outputFormat)
 			var outputBuf bytes.Buffer
 			err := ProcessInput(testCase.input, testCase.program, testCase.programArgs, &outputBuf, encoder, OutputConfig{}, testCase.raw)
 			if err != nil {

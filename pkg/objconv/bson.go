@@ -1,4 +1,4 @@
-package formats
+package objconv
 
 import (
 	"encoding/json"

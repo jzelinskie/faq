@@ -1,4 +1,4 @@
-package formats
+package objconv
 
 import (
 	"bytes"
@@ -95,5 +95,13 @@ func TestXMLEscapeSequences(t *testing.T) {
 				t.Fatal(fmt.Sprintf("incorrect XML value:\nexpected: %#v\ngot:      %#v", row.xml, xmlString))
 			}
 		})
+	}
+}
+
+func TestNonUTF8Encoding(t *testing.T) {
+	var iso8859encodedFeed = []byte(`<?xml version="1.0" encoding="iso-8859-1"?><feed xmlns="http://www.w3.org/2005/Atom" xml:base="https://www.destructoid.com/" xml:lang="en-us"></feed>`)
+	_, err := xmlEncoding{}.NewDecoder(bytes.NewBuffer(iso8859encodedFeed)).MarshalJSONBytes()
+	if err != nil {
+		t.Fatal(err)
 	}
 }
