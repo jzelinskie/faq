@@ -1,83 +1,151 @@
-name: Build & Test
+name: build
+
 on:
   push:
     branches:
-      - master
+      - 'main'
     tags:
-      - "*"
+      - '*'
   pull_request:
     branches:
-      - "*"
+      - '*'
+
+env:
+  QUAY_SLUG: quay.io/jzelinskie/faq
+
 jobs:
-  tests:
-    name: Test
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Validate
+        uses: docker/bake-action@v1
+        with:
+          targets: validate
+
+  test-ctn:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Test
+        uses: docker/bake-action@v1
+        with:
+          targets: test
+      -
+        name: Upload coverage
+        uses: codecov/codecov-action@v2
+        with:
+          file: ./coverage.txt
+
+  test-host:
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-20.04, macos-latest]
+        os:
+          - macos-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout
+      -
+        name: Checkout
         uses: actions/checkout@v2
-      - name: Setup Go
+      -
+        name: Setup Go
         uses: actions/setup-go@v2
         with:
           go-version: ^1.15
-      - name: Install Linux dependencies
-        if: matrix.os == 'ubuntu-20.04'
-        run: sudo apt-get install -y libjq-dev libonig-dev gcc
-      - name: Run tests
+      -
+        name: Test
         run: make test
 
   build:
-    name: Build
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, macos-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    needs:
+      - validate
+      - test-ctn
+      - test-host
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ^1.15
-      - name: Install Linux dependencies
-        if: matrix.os == 'ubuntu-20.04'
-        run: sudo apt-get install -y libjq-dev libonig-dev gcc
-      - name: Build executable
-        run: make build
-
-  docker:
-    name: Build Docker image
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout
+      -
+        name: Checkout
         uses: actions/checkout@v2
-      - name: Set outputs
-        id: vars
-        run: echo "::set-output name=ref::$(git status | head -1 | awk '{print $NF}' | sed 's#/#_#g')"
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
         with:
-          driver-opts: image=moby/buildkit:master
-      - name: Build
-        uses: docker/build-push-action@v2
+          fetch-depth: 0
+      -
+        name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v3
         with:
-          push: false
+          images: |
+            ${{ env.QUAY_SLUG }}
           tags: |
-            quay.io/jzelinskie/faq:${{ steps.vars.outputs.ref }}
-      - name: Login to Quay
+            type=ref,event=tag
+            type=ref,event=pr
+            type=edge
+          flavor: |
+            latest=${{ startsWith(github.ref, 'refs/tags/') }}
+          labels: |
+            org.opencontainers.image.title=faq
+            org.opencontainers.image.description=Format Agnostic jQ -- process various formats with libjq
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Login to Quay
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v1
-        if: github.event_name == 'push'
         with:
           registry: quay.io
           username: jzelinskie+faq_gha
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
-      - name: Push to Quay
-        uses: docker/build-push-action@v2
-        if: github.event_name == 'push'
+      -
+        name: Build artifacts
+        uses: docker/bake-action@v1
         with:
-          push: true
-          tags: |
-            quay.io/jzelinskie/faq:${{ steps.vars.outputs.ref }}
+          targets: artifact-all
+      -
+        name: Move artifacts
+        run: |
+          mv ./dist/**/* ./dist/
+      -
+        name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: faq
+          path: ./dist/*
+          if-no-files-found: error
+      -
+        name: Build
+        uses: docker/bake-action@v1
+        with:
+          files: |
+            ./docker-bake.hcl
+            ${{ steps.meta.outputs.bake-file }}
+          targets: image-all
+          push: ${{ github.event_name != 'pull_request' }}
+      -
+        name: GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          draft: true
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
