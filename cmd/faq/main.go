@@ -34,8 +34,6 @@ Supported formats:
 $FAQ_FORMATTER can be set to terminal, terminal16m, json, tokens, html.
 $FAQ_STYLE can be set to any of the following themes:
 https://xyproto.github.io/splash/docs/
-
-How do you pronounce faq? "Fuck you".
 `,
 		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

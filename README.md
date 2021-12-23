@@ -18,7 +18,7 @@ Supported formats:
 - XML
 - YAML
 
-How do you pronounce faq? "Fuck you".
+How do you pronounce faq? The same way you would insult a particularly nasty structured document: "F♥︎♥︎♥︎ You". 
 
 For example usage, read [the examples doc].
 
