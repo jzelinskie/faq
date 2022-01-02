@@ -16,6 +16,11 @@ target "lint" {
   output = ["type=cacheonly"]
 }
 
+target "test" {
+  target = "test-coverage"
+  output = ["."]
+}
+
 target "artifact" {
   target = "artifacts"
   output = ["./dist"]

@@ -24,6 +24,16 @@ RUN --mount=type=bind,target=. \
   --mount=type=cache,target=/root/.cache \
   golint ./...
 
+FROM vendored AS test
+RUN apt-get install --no-install-recommends -y gcc libc6-dev libjq-dev libonig-dev
+RUN --mount=type=bind,target=. \
+  --mount=type=cache,target=/go/pkg/mod \
+  --mount=type=cache,target=/root/.cache \
+  go test -v -coverprofile=/tmp/coverage.txt -covermode=atomic -race ./...
+
+FROM scratch AS test-coverage
+COPY --from=test /tmp/coverage.txt /coverage.txt
+
 FROM vendored AS build
 ARG TARGETPLATFORM
 ENV CGO_ENABLED=1

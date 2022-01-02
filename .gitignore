@@ -1,4 +1,5 @@
 /dist/
 /vendor/
+/coverage.txt
 /faq
 /faq-*
