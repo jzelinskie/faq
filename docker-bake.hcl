@@ -23,6 +23,7 @@ target "test" {
 
 target "artifact" {
   target = "artifacts"
+  secret = ["id=GITHUB_TOKEN,env=GITHUB_TOKEN"]
   output = ["./dist"]
 }
 
@@ -42,6 +43,7 @@ target "artifact-all" {
 
 target "image" {
   inherits = ["docker-metadata-action"]
+  secret = ["id=GITHUB_TOKEN,env=GITHUB_TOKEN"]
 }
 
 target "image-local" {

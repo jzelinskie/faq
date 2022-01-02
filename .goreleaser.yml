@@ -10,3 +10,19 @@ builds:
 
 snapshot:
   name_template: "{{ .Tag }}-next"
+
+brews:
+  - goarm: "7"
+    tap:
+      owner: jzelinskie
+      name: homebrew-faq
+    folder: Formula
+    homepage: https://github.com/jzelinskie/faq
+    description: Format Agnostic jQ
+    license: "Apache 2.0"
+    dependencies:
+      - name: jq
+    test: |
+      system "#{bin}/faq", "--version"
+    # FIXME: Skip upload for now. Needs to handle multiple packages.
+    skip_upload: true

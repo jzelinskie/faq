@@ -118,6 +118,8 @@ jobs:
         uses: docker/bake-action@v1
         with:
           targets: artifact-all
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       -
         name: Move artifacts
         run: |

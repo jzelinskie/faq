@@ -45,7 +45,8 @@ RUN goxx-macports --static install jq
 RUN --mount=type=bind,target=/src,rw \
   --mount=type=cache,target=/root/.cache \
   --mount=target=/go/pkg/mod,type=cache \
-  goreleaser-xx --debug \
+  --mount=type=secret,id=GITHUB_TOKEN \
+  GITHUB_TOKEN=$(cat /run/secrets/GITHUB_TOKEN) goreleaser-xx --debug \
     --config=".goreleaser.yml" \
     --name="faq" \
     --dist="/out" \
