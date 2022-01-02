@@ -17,6 +17,13 @@ RUN --mount=type=bind,target=.,rw \
   --mount=type=cache,target=/go/pkg/mod \
   go mod tidy && go mod download
 
+FROM base AS lint
+RUN apt-get install --no-install-recommends -y gcc libc6-dev libjq-dev libonig-dev
+RUN go install golang.org/x/lint/golint@latest
+RUN --mount=type=bind,target=. \
+  --mount=type=cache,target=/root/.cache \
+  golint ./...
+
 FROM vendored AS build
 ARG TARGETPLATFORM
 ENV CGO_ENABLED=1

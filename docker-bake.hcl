@@ -7,6 +7,15 @@ target "docker-metadata-action" {
   tags = ["faq:local"]
 }
 
+group "validate" {
+  targets = ["lint"]
+}
+
+target "lint" {
+  target = "lint"
+  output = ["type=cacheonly"]
+}
+
 target "artifact" {
   target = "artifacts"
   output = ["./dist"]
