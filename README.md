@@ -1,7 +1,7 @@
 # faq
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/jzelinskie/faq?style=flat-square)](https://goreportcard.com/report/github.com/jzelinskie/faq)
-[![Build Status](https://github.com/jzelinskie/faq/workflows/Build%20&%20Test/badge.svg)](https://github.com/jzelinskie/faq/actions)
+[![Build Status](https://img.shields.io/github/workflow/status/jzelinskie/faq/build?style=flat-square&label=build&logo=github)](https://github.com/jzelinskie/faq/actions?query=workflow%3Abuild)
 [![Godoc](https://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](https://pkg.go.dev/github.com/jzelinskie/faq)
 [![Releases](https://img.shields.io/github/release/jzelinskie/faq/all.svg?style=flat-square)](https://github.com/jzelinskie/faq/releases)
 [![LICENSE](https://img.shields.io/github/license/jzelinskie/faq.svg?style=flat-square)](https://github.com/coreos/etcd/blob/master/LICENSE)
@@ -54,6 +54,31 @@ A version of [jq] greater than 1.6-rc2 that includes the libjq header files must
 git clone git@github.com:jzelinskie/faq.git
 cd faq
 make all
+```
+
+With Docker and [buildx bake](https://github.com/docker/buildx/blob/master/docs/reference/buildx_bake.md#description):
+
+```shell
+# build docker image and output to docker with faq:local tag (default)
+docker buildx bake image-local
+
+# create builder for multi-arch build (see below)
+docker buildx create --name faq-builder
+
+# build multi-platform image
+docker buildx bake image-all
+
+# create the artifact matching your current platform in ./dist
+docker buildx bake artifact
+
+# create artifacts for many platforms in ./dist
+docker buildx bake artifact-all
+
+# run tests
+docker buildx bake test
+
+# lint
+docker buildx bake lint
 ```
 
 [latest stable version of Go]: https://golang.org/dl
