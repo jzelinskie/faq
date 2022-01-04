@@ -1,0 +1,12 @@
+# https://github.com/crazy-max/goreleaser-xx
+
+env:
+  - GO111MODULE=auto
+
+builds:
+  - mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
