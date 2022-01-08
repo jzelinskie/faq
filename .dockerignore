@@ -1,2 +1,4 @@
-vendor/*
+/dist/
+/vendor/
 /faq
+/coverage.txt
