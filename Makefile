@@ -15,7 +15,7 @@ GO_EXT_LD_FLAGS+= -static
 endif
 
 FAQ_VERSION=$(shell git describe --always --abbrev=40 --dirty)
-GO_LD_FLAGS=-s -w -X github.com/jzelinskie/faq/pkg/version.Version=$(FAQ_VERSION) -extldflags "$(GO_EXT_LD_FLAGS)"
+GO_LD_FLAGS=-s -w -X github.com/jzelinskie/faq/internal/version.Version=$(FAQ_VERSION) -extldflags "$(GO_EXT_LD_FLAGS)"
 
 GO=go
 GO_BUILD_ARGS=-v -ldflags '$(GO_LD_FLAGS)' -tags netgo
