@@ -37,6 +37,7 @@ jq programs are stable and should be considered a bug if it does not match jq be
 
 - Statically compiled binaries are available on the [releases] page: just download the binary for your platform, and make it executable.
 - A [Homebrew] formula can be installed with `brew install jzelinskie/faq/faq`
+- On macOS, you can also install through [MacPorts](https://www.macports.org): `sudo port install faq` ([info](https://ports.macports.org/port/faq/))
 - RPMs are available via a [COPR repository]. 
 - There's an [AUR PKGBUILD] for Arch Linux that can be installed with your favorite [AUR tooling].
 
